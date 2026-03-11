@@ -1,3 +1,20 @@
-FastAPI
-yfinance
-pandas
+cat > requirements.txt << 'EOF'
+fastapi==0.135.1
+uvicorn[standard]==0.41.0
+yfinance==1.2.0
+pandas==3.0.1
+numpy==2.4.3
+apscheduler==3.11.2
+pydantic==2.12.5
+python-dateutil==2.9.0.post0
+pytz==2026.1.post1
+requests==2.32.5
+curl_cffi==0.13.0
+beautifulsoup4==4.14.3
+frozendict==2.4.7
+multitasking==0.0.12
+peewee==4.0.1
+protobuf==7.34.0
+tzlocal==5.3.1
+websockets==16.0
+EOF
