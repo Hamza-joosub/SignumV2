@@ -74,6 +74,5 @@ npm run dev
 
 ### Start Backend
 conda activate quantlab
-(quantlab) hamza@Hamzas-MacBook-Pro SignumV2 % conda activate quantlab
 cd /Users/hamza/Documents/SideQuests/SignumV2
 uvicorn api.main:app --reload
