@@ -4,7 +4,6 @@ import Markets from "./pages/Markets"
 import Category from "./pages/Category"
 import Instrument from "./pages/Instrument"
 import Models from "./pages/Models"
-import ModelView from "./pages/ModelView"
 
 export default function App() {
   return (
