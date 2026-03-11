@@ -4,7 +4,8 @@ import { createChart, LineSeries } from "lightweight-charts";
 import { G } from "../styles/tokens";
 import NewsPanel from "../components/NewsPanel";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL;
+
 
 const PERIODS = [
   { label: "1D", interval: "intraday" },

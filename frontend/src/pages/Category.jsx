@@ -4,7 +4,7 @@ import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 import { G } from "../styles/tokens";
 import NewsPanel from "../components/NewsPanel";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL;
 const TIMEFRAMES = ["1D", "1W", "1M", "3M", "1Y", "2Y", "5Y"];
 const TF_CAPS = { "1D": 3, "1W": 8, "1M": 15, "3M": 30, "1Y": 60, "2Y": 80, "5Y": 200 };
 

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { G } from "../styles/tokens";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL;
+
 
 export default function NewsPanel({
     ticker = null,        // if set, fetches /api/news/AAPL

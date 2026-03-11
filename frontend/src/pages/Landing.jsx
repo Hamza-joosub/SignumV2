@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { G } from "../styles/tokens"
 import NewsPanel from "../components/NewsPanel"
+const API = import.meta.env.VITE_API_URL;
 
 
 const STRIP_ITEMS = [
