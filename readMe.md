@@ -11,7 +11,7 @@ The interface is intentionally unintimidating but never dumbed down. The complex
 
 The niche is the gap between a retail brokerage app and a professional terminal. One tells you nothing. The other costs $25,000 a year and assumes you already know everything. Signum sits exactly between them — sophisticated enough to be trusted, accessible enough to be actually used.
 
-# Tehcincals
+# Technicals
 ## Backend
 Backend — FastAPI + yFinanceThe API is built in FastAPI, deployed on Railway. It's structured around four core route modules:
 + /api/heatmap — fetches a configurable set of instruments across all five asset classes, computes percentage returns for a given timeframe (1D through 5Y), normalises weights for treemap sizing, and returns a ranked instrument list. The same endpoint accepts an asset_class path parameter for the Category view and a ?view=full flag for expanded data.
