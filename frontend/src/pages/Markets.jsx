@@ -12,21 +12,12 @@ const TIMEFRAMES = ["1D", "1W", "1M", "3M", "1Y", "2Y", "5Y"];
 const TF_CAPS = { "1D": 3, "1W": 8, "1M": 15, "3M": 30, "1Y": 60, "2Y": 80, "5Y": 200 };
 
 const CATEGORIES = [
-  { key: "stocks", label: "Equities", desc: "Large-cap US stocks" },
+  { key: "stocks", label: "Equities", desc: "Global equity markets" },
   { key: "fx", label: "FX", desc: "Major currency pairs" },
   { key: "crypto", label: "Crypto", desc: "Digital assets" },
   { key: "commodities", label: "Commodities", desc: "Energy, metals, agri" },
   { key: "bonds", label: "Bonds", desc: "Fixed income ETFs" },
 ];
-
-function getCategory(ticker) {
-  if (["NVDA", "AAPL", "MSFT", "AMZN", "GOOG", "AVGO", "META", "TSLA", "BRK-B"].includes(ticker)) return "stocks";
-  if (["EUR=X", "JPY=X", "GBP=X", "CAD=X", "CHF=X"].includes(ticker)) return "fx";
-  if (["BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "SOL-USD"].includes(ticker)) return "crypto";
-  if (["BZ=F", "CL=F", "GC=F", "HG=F", "NG=F", "ZC=F", "ZS=F", "SI=F", "KE=F", "KC=F"].includes(ticker)) return "commodities";
-  if (["TLT", "IEF", "MBB", "EMB", "SHY", "SDEU.L", "1482.T", "IGLT.L"].includes(ticker)) return "bonds";
-  return null;
-}
 
 const ALL_MODELS = [
   { name: "Multi-Factor", tag: "Quant", desc: "Ranks assets across momentum, value, quality and volatility factors." },
@@ -108,7 +99,7 @@ function HeatTip({ active, payload, tf }) {
 
 // ── ASSET SECTION ─────────────────────────────────────────────────────────
 
-function AssetSection({ categoryKey, label, desc, instruments, tf, height, onBrowse, onViewInstrument }) {
+function AssetSection({ categoryKey, label, desc, instruments, tf, height, onBrowse, onViewInstrument, onBack }) {
   const [hov, setHov] = useState(false);
   const data = instruments.map(inst => ({
     name: inst.label, label: inst.label, ticker: inst.ticker,
@@ -130,6 +121,16 @@ function AssetSection({ categoryKey, label, desc, instruments, tf, height, onBro
         padding: "9px 14px", background: G.s1, borderBottom: `1px solid ${G.border}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {onBack && (
+            <button onClick={onBack} style={{
+              fontSize: 11, fontFamily: "'DM Mono',monospace", color: G.text3,
+              background: "none", border: `1px solid ${G.border}`, borderRadius: 3,
+              padding: "3px 8px", cursor: "pointer", transition: "all .15s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = G.text; e.currentTarget.style.borderColor = G.border2; }}
+              onMouseLeave={e => { e.currentTarget.style.color = G.text3; e.currentTarget.style.borderColor = G.border; }}
+            >← Back</button>
+          )}
           <span style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", fontWeight: 500, letterSpacing: "1.5px", textTransform: "uppercase", color: G.text }}>
             {label}
           </span>
@@ -142,17 +143,6 @@ function AssetSection({ categoryKey, label, desc, instruments, tf, height, onBro
             </span>
           )}
         </div>
-        <button onClick={() => onBrowse(categoryKey)} style={{
-          fontSize: 11, fontFamily: "'DM Mono',monospace", fontWeight: 500,
-          color: G.textInv,
-          background: G.bgDark,
-          border: `1px solid ${G.bgDark}`,
-          borderRadius: 4, padding: "7px 18px", cursor: "pointer", transition: "all .2s",
-          letterSpacing: "0.2px",
-        }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = "0.75"; }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-        >Browse all →</button>
       </div>
       {/* treemap */}
       {instruments.length === 0 ? (
@@ -239,21 +229,61 @@ export default function Markets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Stocks drill-down: level 1 = regions, 2 = sectors, 3 = individual stocks
+  const [stocksDrill, setStocksDrill] = useState({ level: 1, parent: null, trail: [] });
+
+  // Reset drill-down when timeframe changes
+  useEffect(() => { setStocksDrill({ level: 1, parent: null, trail: [] }); }, [tf]);
+
   useEffect(() => {
     setLoading(true);
-    fetch(`${API}/api/heatmap?tf=${tf}`)
-      .then(r => r.json())
-      .then(data => {
-        const g = { stocks: [], fx: [], crypto: [], commodities: [], bonds: [] };
-        data.instruments.forEach(inst => {
-          const cat = getCategory(inst.ticker);
-          if (cat) g[cat].push(inst);
+
+    // Build stocks URL based on drill-down state
+    const stocksParams = `tf=${tf}&category=stocks&level=${stocksDrill.level}${stocksDrill.parent ? `&parent=${stocksDrill.parent}` : ''}`;
+    const othersParams = `tf=${tf}&level=1`;
+
+    Promise.all([
+      fetch(`${API}/api/heatmap?${stocksParams}`).then(r => r.json()),
+      fetch(`${API}/api/heatmap?${othersParams}`).then(r => r.json()),
+    ])
+      .then(([stocksData, othersData]) => {
+        // If drill-down returned empty, go back and navigate to instrument instead
+        if (stocksDrill.level > 1 && (!stocksData.instruments || stocksData.instruments.length === 0)) {
+          navigate(`/markets/instrument/${stocksDrill.parent}`);
+          return;
+        }
+        const g = { stocks: stocksData.instruments || [], fx: [], crypto: [], commodities: [], bonds: [] };
+        othersData.instruments.forEach(inst => {
+          if (inst.category !== "stocks" && g[inst.category]) g[inst.category].push(inst);
         });
         setGrouped(g);
         setLoading(false);
       })
       .catch(e => { setError(e.message); setLoading(false); });
-  }, [tf]);
+  }, [tf, stocksDrill]);
+
+  // Clicking a stocks cell: drill down if not at level 3, otherwise go to instrument
+  const handleStockClick = (ticker) => {
+    if (stocksDrill.level >= 3) {
+      navigate(`/markets/instrument/${ticker}`);
+      return;
+    }
+    const inst = grouped.stocks.find(i => i.ticker === ticker);
+    setStocksDrill(prev => ({
+      level: prev.level + 1,
+      parent: ticker,
+      trail: [...prev.trail, { level: prev.level, parent: prev.parent, label: inst?.label || ticker }],
+    }));
+  };
+
+  // Go back one drill-down level
+  const handleStocksBack = () => {
+    setStocksDrill(prev => {
+      if (prev.trail.length === 0) return prev;
+      const last = prev.trail[prev.trail.length - 1];
+      return { level: last.level, parent: last.parent, trail: prev.trail.slice(0, -1) };
+    });
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'DM Sans',sans-serif", color: G.text }}>
@@ -309,38 +339,54 @@ export default function Markets() {
         {!loading && !error && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-            {/* 1. Equities — dominant, full width */}
-            {/* ↓ adjust pixel heights here to suit your screen */}
-            <AssetSection categoryKey="stocks" label="Equities" desc="Large-cap US stocks"
-              instruments={grouped.stocks || []} tf={tf} height={200}
-              onBrowse={k => navigate(`/markets/${k}`)}
-              onViewInstrument={t => navigate(`/markets/instrument/${t}`)} />
+            {/* 1. Equities — full screen when drilled down */}
+            {(() => {
+              const isDrilled = stocksDrill.level > 1;
+              const drillLabel = stocksDrill.trail.length > 0
+                ? "Equities › " + stocksDrill.trail.map(t => t.label).join(" › ")
+                : "Equities";
+              const drillDesc = stocksDrill.level === 1 ? "Global equity markets"
+                : stocksDrill.level === 2 ? "US sectors" : "Individual stocks";
+              return (
+                <AssetSection categoryKey="stocks" label={drillLabel} desc={drillDesc}
+                  instruments={grouped.stocks || []} tf={tf}
+                  height={isDrilled ? 550 : 200}
+                  onBrowse={k => navigate(`/markets/${k}`)}
+                  onViewInstrument={handleStockClick}
+                  onBack={isDrilled ? handleStocksBack : null} />
+              );
+            })()}
 
-            {/* 2. FX (wider) + Crypto */}
-            <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
-              {["fx", "crypto"].map(key => {
-                const cat = CATEGORIES.find(c => c.key === key);
-                return (
-                  <AssetSection key={key} categoryKey={key} label={cat.label} desc={cat.desc}
-                    instruments={grouped[key] || []} tf={tf} height={190}
-                    onBrowse={k => navigate(`/markets/${k}`)}
-                    onViewInstrument={t => navigate(`/markets/instrument/${t}`)} />
-                );
-              })}
-            </div>
+            {/* Hide other categories when stocks are drilled down */}
+            {stocksDrill.level === 1 && (
+              <>
+                {/* 2. FX (wider) + Crypto */}
+                <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
+                  {["fx", "crypto"].map(key => {
+                    const cat = CATEGORIES.find(c => c.key === key);
+                    return (
+                      <AssetSection key={key} categoryKey={key} label={cat.label} desc={cat.desc}
+                        instruments={grouped[key] || []} tf={tf} height={190}
+                        onBrowse={k => navigate(`/markets/${k}`)}
+                        onViewInstrument={t => navigate(`/markets/instrument/${t}`)} />
+                    );
+                  })}
+                </div>
 
-            {/* 3. Commodities + Bonds */}
-            <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
-              {["commodities", "bonds"].map(key => {
-                const cat = CATEGORIES.find(c => c.key === key);
-                return (
-                  <AssetSection key={key} categoryKey={key} label={cat.label} desc={cat.desc}
-                    instruments={grouped[key] || []} tf={tf} height={150}
-                    onBrowse={k => navigate(`/markets/${k}`)}
-                    onViewInstrument={t => navigate(`/markets/instrument/${t}`)} />
-                );
-              })}
-            </div>
+                {/* 3. Commodities + Bonds */}
+                <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
+                  {["commodities", "bonds"].map(key => {
+                    const cat = CATEGORIES.find(c => c.key === key);
+                    return (
+                      <AssetSection key={key} categoryKey={key} label={cat.label} desc={cat.desc}
+                        instruments={grouped[key] || []} tf={tf} height={150}
+                        onBrowse={k => navigate(`/markets/${k}`)}
+                        onViewInstrument={t => navigate(`/markets/instrument/${t}`)} />
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
           </div>
         )}

@@ -102,10 +102,15 @@ npm install recharts
 
 ### Start Front End
 conda activate quantlab
-cd /Users/hamza/Documents/SideQuests/SignumV2/frontend
+cd "/Users/hamza/Documents/Code Base/SignumV2/frontend"
 npm run dev
+
 
 ### Start Backend
 conda activate quantlab
-cd /Users/hamza/Documents/SideQuests/SignumV2
+cd /Users/hamza/Documents/Code Base/SignumV2
 uvicorn api.main:app --reload
+
+http://localhost:8000/docs — interactive Swagger UI 
+http://localhost:8000/api/heatmap?tf=1W — endpoint directly
+

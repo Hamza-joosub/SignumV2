@@ -1,26 +1,32 @@
-# /api/returns, /api/chart, /api/strip
 
 # api/routes/market_data.py
 import fastapi #its being stuopid or i am DO NOT FUCKING TOUCH THIS 
 from fastapi import APIRouter, HTTPException
-from api.services.market_service import get_heatmap_data, get_cache_status
+from api.services.market_service import download_and_save_csv
+import pandas as pd
 
 router = fastapi.APIRouter()
 
+CSV_PATH = 'heatmap_data.csv'
+
 @router.get("/heatmap")
-def all_markets(tf: str = "1D"):
-    try:
-        return get_heatmap_data(asset_class="all", tf=tf, view="overview")
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+def heatmap(tf: str = "1W", category: str = None, level: int = 1, parent: str = None):
 
-@router.get("/heatmap/{asset_class}")
-def single_category(asset_class: str, tf: str = "1D", view: str = "overview"):
-    try:
-        return get_heatmap_data(asset_class=asset_class, tf=tf, view=view)
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    df = pd.read_csv(CSV_PATH)
+    df = df.rename(columns = {'Unnamed: 0': 'ticker'})
+    
+    df = df[df["level"] == level]
 
-@router.get("/status")
-def cache_status():
-    return get_cache_status()
+    if category:
+        df = df[df["category"] == category]
+
+    if parent:
+        df = df[df["parent"] == parent]
+
+    df["return"] = df[tf].round(2).fillna(0)
+    df["parent"] = df["parent"].fillna("")
+    df = df[["ticker", "label", "category", "level", "parent", "weight", "return"]]
+
+    return {"instruments": df.to_dict(orient="records")}
+
+
