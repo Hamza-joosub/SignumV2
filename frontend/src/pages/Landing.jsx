@@ -112,7 +112,6 @@ export default function Landing() {
       `}</style>
 
       <Nav navigate={navigate} />
-      <TickerStrip />
 
       {/* ── HERO ── */}
       <section style={{
