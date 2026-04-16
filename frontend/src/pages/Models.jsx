@@ -94,7 +94,7 @@ function Nav({ navigate }) {
           background: "rgba(255,255,255,0.06)", border: `1px solid ${G.borderDk}`,
           borderRadius: 4, padding: "5px 12px",
         }}>
-          <span style={{ fontSize: 11, color: G.textInv3 }}>⌕</span>
+          <span style={{ fontSize: 11, color: G.textInv3 }}></span>
           <input placeholder="Search ticker..." value={q}
             onChange={e => setQ(e.target.value.toUpperCase())}
             onKeyDown={e => { if (e.key === "Enter" && q.trim()) { navigate(`/markets/instrument/${q.trim()}`); setQ(""); } }}
@@ -211,7 +211,7 @@ function ModelCard({ model, navigate }) {
             color: hov ? G.bgDark : G.textInv,
             border: "none", transition: "all .2s",
             letterSpacing: "0.2px",
-          }}>Run →</button>
+          }}>Run </button>
         </div>
       </div>
     </div>
@@ -251,7 +251,7 @@ export default function Models() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {[["Home", "/"], ["Models", null]].map(([lbl, path], i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {i > 0 && <span style={{ color: G.border2, fontSize: 11 }}>›</span>}
+              {i > 0 && <span style={{ color: G.border2, fontSize: 11 }}>/</span>}
               <span onClick={() => path && navigate(path)} style={{
                 fontSize: 11, fontFamily: "'DM Mono',monospace",
                 color: path ? G.text3 : G.text2,

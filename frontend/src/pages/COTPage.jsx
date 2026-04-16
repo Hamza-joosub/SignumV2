@@ -35,18 +35,18 @@ const TERM_LINES = [
   { text: "from services.cot_service import download_cot_data", style: "fn", delay: 600 },
   { text: "", delay: 700 },
   { text: "download_cot_data('combined', years=[2018..2026])", style: "fn", delay: 900, stage: "downloading COT data...", pct: 5 },
-  { text: "  Fetching 2018... ✓ 2,847 rows", style: "ok", delay: 1200, stage: "fetching 2018...", pct: 15 },
-  { text: "  Fetching 2019... ✓ 3,102 rows", style: "ok", delay: 1500, stage: "fetching 2019...", pct: 25 },
-  { text: "  Fetching 2020... ✓ 2,956 rows", style: "ok", delay: 1800, stage: "fetching 2020...", pct: 35 },
-  { text: "  Fetching 2021... ✓ 3,214 rows", style: "ok", delay: 2050, stage: "fetching 2021...", pct: 42 },
-  { text: "  Fetching 2022... ✓ 3,048 rows", style: "ok", delay: 2250, stage: "fetching 2022...", pct: 50 },
-  { text: "  Fetching 2023... ✓ 3,187 rows", style: "ok", delay: 2450, stage: "fetching 2023...", pct: 58 },
-  { text: "  Fetching 2024... ✓ 3,091 rows", style: "ok", delay: 2650, stage: "fetching 2024...", pct: 66 },
-  { text: "  Fetching 2025... ✓ 1,612 rows", style: "ok", delay: 2850, stage: "fetching 2025...", pct: 72 },
-  { text: "  Fetching 2026... ✓ 812 rows", style: "ok", delay: 3000, stage: "fetching 2026...", pct: 76 },
-  { text: "clean_financial_cot_data(raw, INSTRUMENT_MAP) → 10 instruments", style: "dim", delay: 3300, stage: "cleaning & mapping...", pct: 82 },
-  { text: "feature_engineering(cot_clean) → ratios, proportions, crowding", style: "dim", delay: 3600, stage: "feature engineering...", pct: 88 },
-  { text: "generate_insights(cot_clean, lookback=104) → signals", style: "dim", delay: 4000, stage: "generating insights...", pct: 94 },
+  { text: "  Fetching 2018... 2,847 rows", style: "ok", delay: 1200, stage: "fetching 2018...", pct: 15 },
+  { text: "  Fetching 2019... 3,102 rows", style: "ok", delay: 1500, stage: "fetching 2019...", pct: 25 },
+  { text: "  Fetching 2020... 2,956 rows", style: "ok", delay: 1800, stage: "fetching 2020...", pct: 35 },
+  { text: "  Fetching 2021... 3,214 rows", style: "ok", delay: 2050, stage: "fetching 2021...", pct: 42 },
+  { text: "  Fetching 2022... 3,048 rows", style: "ok", delay: 2250, stage: "fetching 2022...", pct: 50 },
+  { text: "  Fetching 2023... 3,187 rows", style: "ok", delay: 2450, stage: "fetching 2023...", pct: 58 },
+  { text: "  Fetching 2024... 3,091 rows", style: "ok", delay: 2650, stage: "fetching 2024...", pct: 66 },
+  { text: "  Fetching 2025... 1,612 rows", style: "ok", delay: 2850, stage: "fetching 2025...", pct: 72 },
+  { text: "  Fetching 2026... 812 rows", style: "ok", delay: 3000, stage: "fetching 2026...", pct: 76 },
+  { text: "clean_financial_cot_data(raw, INSTRUMENT_MAP) -> 10 instruments", style: "dim", delay: 3300, stage: "cleaning & mapping...", pct: 82 },
+  { text: "feature_engineering(cot_clean) -> ratios, proportions, crowding", style: "dim", delay: 3600, stage: "feature engineering...", pct: 88 },
+  { text: "generate_insights(cot_clean, lookback=104) -> signals", style: "dim", delay: 4000, stage: "generating insights...", pct: 94 },
   { text: "", delay: 4300 },
   { text: "Pipeline complete. Rendering...", style: "ok", delay: 4500, stage: "rendering...", pct: 100 },
 ];
@@ -282,7 +282,7 @@ function ChartBox({ title, subtitle, legend, children, height = 500 }) {
             }}
               onMouseEnter={e => { e.currentTarget.style.color = G.text; e.currentTarget.style.borderColor = G.border2; }}
               onMouseLeave={e => { e.currentTarget.style.color = G.text3; e.currentTarget.style.borderColor = G.border; }}
-            >⛶ expand</button>
+            >expand</button>
           </div>
         </div>
         {subtitle && (
@@ -448,7 +448,7 @@ function BeforeAfterProof({ proof }) {
         })}
       </div>
       <div style={{ fontFamily: M.mono, fontSize: 10, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.border}`, color: proof.curr_val >= 0 ? M.green : M.red }}>
-        {proof.prev_date}: {proof.prev_val.toLocaleString()} → {proof.curr_date}: {proof.curr_val.toLocaleString()}
+        {proof.prev_date}: {proof.prev_val.toLocaleString()} -> {proof.curr_date}: {proof.curr_val.toLocaleString()}
       </div>
       <div style={{ fontFamily: M.sans, fontSize: 11, color: G.text3, lineHeight: 1.7, marginTop: 10 }}>
         {proof.actor}'s net position moved from {proof.prev_val.toLocaleString()} ({flippedFrom}) on {proof.prev_date} to {proof.curr_val.toLocaleString()} ({flippedTo}) on {proof.curr_date}. Green bars = net long, red = net short.
@@ -502,7 +502,7 @@ function DataExplainer() {
         padding: "10px 16px", cursor: "pointer", border: "none", background: "none", width: "100%", textAlign: "left",
       }}>
         <span style={{ fontFamily: M.mono, fontSize: 10, color: G.text2, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: G.text3 }}>ℹ</span> About this data — CFTC Commitments of Traders (COT)
+          About this data — CFTC Commitments of Traders (COT)
         </span>
         <span style={{ fontFamily: M.mono, fontSize: 10, color: G.text3 }}>{open ? "−" : "+"}</span>
       </button>
@@ -571,7 +571,7 @@ export default function COTPage() {
     setSearchParams({ instrument: inst });
   };
 
-  // ── Date formatter: "2025-04-07" → "Apr '25" ──
+  // ── Date formatter: "2025-04-07" -> "Apr '25" ──
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmtDate = (d) => {
     const parts = d.split("-");
@@ -655,8 +655,9 @@ export default function COTPage() {
 
       {/* INSTRUMENT BAR */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 4, padding: "8px 40px",
-        background: G.s1, borderBottom: `1px solid ${G.border}`, overflowX: "auto",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        gap: 4, padding: "10px 20px", flexWrap: "wrap", rowGap: 6,
+        background: G.s1, borderBottom: `1px solid ${G.border}`,
       }}>
         <span style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, letterSpacing: 1, textTransform: "uppercase", marginRight: 8, flexShrink: 0 }}>Instrument</span>
         {instruments.map(inst => (
@@ -709,7 +710,7 @@ export default function COTPage() {
               borderRadius: 3, padding: "10px 14px", marginBottom: 14,
               fontFamily: M.mono, fontSize: 10, lineHeight: 1.7, color: G.text3,
             }}>
-              <span style={{ color: M.amber, fontWeight: 500 }}>⚠ Futures data only.</span> This report covers regulated futures (and options on futures) positions reported to the CFTC. It does not capture OTC derivatives, spot positions, ETF flows, or internal institutional allocations. The data represents a meaningful but incomplete picture of institutional positioning — treat it as a directional signal, not a complete census.
+              <span style={{ color: M.amber, fontWeight: 500 }}>Futures data only.</span> This report covers regulated futures (and options on futures) positions reported to the CFTC. It does not capture OTC derivatives, spot positions, ETF flows, or internal institutional allocations. The data represents a meaningful but incomplete picture of institutional positioning — treat it as a directional signal, not a complete census.
             </div>
 
             {/* MAIN CHART: NET POSITIONING */}
@@ -783,7 +784,7 @@ export default function COTPage() {
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${G.border}` }}>
                 <h2 style={{ fontFamily: M.serif, fontSize: 20, fontWeight: 700, letterSpacing: "-0.3px", marginBottom: 4 }}>Generated Insights</h2>
                 <p style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, marginBottom: 20 }}>
-                  <span style={{ color: M.green }}>&gt;</span> generate_insights(cot_clean, lookback=104).filter(instrument='{instrument}') → {data.insights.length} signals
+                  <span style={{ color: M.green }}>&gt;</span> generate_insights(cot_clean, lookback=104).filter(instrument='{instrument}') -&gt; {data.insights.length} signals
                 </p>
                 {data.insights.map((insight, i) => <InsightCard key={i} insight={insight} />)}
               </div>

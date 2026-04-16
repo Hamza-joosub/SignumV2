@@ -203,7 +203,7 @@ function Nav({ navigate }) {
           background: "rgba(255,255,255,0.06)", border: `1px solid ${G.borderDk}`,
           borderRadius: 4, padding: "5px 12px",
         }}>
-          <span style={{ fontSize: 11, color: G.textInv3 }}>⌕</span>
+          <span style={{ fontSize: 11, color: G.textInv3 }}></span>
           <input placeholder="Search ticker..." value={q}
             onChange={e => setQ(e.target.value.toUpperCase())}
             onKeyDown={e => { if (e.key === "Enter" && q.trim()) { navigate(`/markets/instrument/${q.trim()}`); setQ(""); } }}
@@ -308,7 +308,7 @@ export default function Markets() {
             onMouseLeave={e => e.currentTarget.style.color = G.text3}
             onClick={() => navigate("/")}
           >Home</span>
-          <span style={{ color: G.border2 }}>›</span>
+          <span style={{ color: G.border2 }}>/</span>
           <span style={{ fontSize: 11, color: G.text2, fontFamily: "'DM Mono',monospace" }}>Markets</span>
         </div>
         <div style={{ display: "flex", gap: 1, background: G.bg, border: `1px solid ${G.border}`, borderRadius: 5, padding: 2 }}>
@@ -440,7 +440,7 @@ export default function Markets() {
             }}
             onMouseEnter={e => { e.currentTarget.style.background = G.bgDark; e.currentTarget.style.borderColor = G.bgDark; e.currentTarget.style.color = G.textInv; }}
             onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text2; }}
-          >View all →</button>
+          >View all </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
           {ALL_MODELS.map((m, i) => {
@@ -481,7 +481,7 @@ export default function Markets() {
                     color: isQuant ? G.text3 : "#92400e",
                     border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
                   }}>{m.tag}</span>
-                  <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}>→</span>
+                  <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}></span>
                 </div>
                 <div>
                   <p className="card-title" style={{ fontSize: 15, fontWeight: 600, color: G.text, fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>{m.name}</p>

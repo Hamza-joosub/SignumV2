@@ -75,16 +75,6 @@ function Nav({ navigate }) {
             onMouseLeave={e => e.currentTarget.style.color = G.text2}
           >{label}</button>
         ))}
-        <button onClick={() => navigate("/markets")}
-          style={{
-            background: G.bgDark, color: G.textInv,
-            border: "none", cursor: "pointer",
-            fontSize: 12, fontFamily: "'DM Sans',sans-serif", fontWeight: 500,
-            padding: "8px 20px", borderRadius: 4, transition: "opacity .15s",
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = "0.8"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-        >Open App</button>
       </div>
     </nav>
   );
@@ -109,6 +99,10 @@ export default function Landing() {
         .fu4 { animation: fadeUp .65s .38s ease both; }
         .fu5 { animation: fadeUp .65s .52s ease both; }
         .fu6 { animation: fadeUp .65s .66s ease both; }
+        @media (max-width: 640px) {
+          nav { padding: 0 16px !important; gap: 12px; }
+          nav > div:last-child { gap: 20px !important; }
+        }
       `}</style>
 
       <Nav navigate={navigate} />
@@ -218,7 +212,7 @@ export default function Landing() {
             onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.18)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
           >
-            Explore Markets →
+            Explore Markets
           </button>
           <button
             onClick={() => navigate("/models")}
@@ -325,7 +319,7 @@ export default function Landing() {
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,255,255,0.1)"; }}
           onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
         >
-          Explore Markets →
+          Explore Markets
         </button>
       </section>
 
