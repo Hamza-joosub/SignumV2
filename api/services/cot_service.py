@@ -4,7 +4,6 @@ import numpy as np
 import requests
 import zipfile
 import io
-import plotly.express as px
 
 INSTRUMENT_MAP = {
     # S&P 500 — all variants map to same instrument
@@ -159,7 +158,7 @@ def find_dominant_contracts(df, instrument_name):
 
     df_filtered_pivot_proportions = df_filtered_pivot.div(df_filtered_pivot['Total'], axis=0) * 100
     df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
-    return px.line(df_filtered_pivot_proportions)
+    return df_filtered_pivot_proportions
 
 def clean_financial_cot_data(df, instrument_map):
     ''' Dealer — financial institutions/dealers (often on the other side of client trades)
