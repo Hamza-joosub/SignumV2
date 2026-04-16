@@ -448,7 +448,7 @@ function BeforeAfterProof({ proof }) {
         })}
       </div>
       <div style={{ fontFamily: M.mono, fontSize: 10, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.border}`, color: proof.curr_val >= 0 ? M.green : M.red }}>
-        {proof.prev_date}: {proof.prev_val.toLocaleString()} -> {proof.curr_date}: {proof.curr_val.toLocaleString()}
+        {`${proof.prev_date}: ${proof.prev_val.toLocaleString()} -> ${proof.curr_date}: ${proof.curr_val.toLocaleString()}`}
       </div>
       <div style={{ fontFamily: M.sans, fontSize: 11, color: G.text3, lineHeight: 1.7, marginTop: 10 }}>
         {proof.actor}'s net position moved from {proof.prev_val.toLocaleString()} ({flippedFrom}) on {proof.prev_date} to {proof.curr_val.toLocaleString()} ({flippedTo}) on {proof.curr_date}. Green bars = net long, red = net short.
