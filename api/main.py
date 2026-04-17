@@ -19,6 +19,8 @@ async def lifespan(app: FastAPI):
         download_and_save_csv()
     if not os.path.exists(COT_CSV):
         refresh_cot_data()
+    if not os.path.exists(COT_CSV):
+        refresh_cot_data()
 
     scheduler.add_job(download_and_save_csv, "cron", hour=21, minute=30)
     scheduler.add_job(refresh_cot_data, "cron", day_of_week="fri", hour=22, minute=0)

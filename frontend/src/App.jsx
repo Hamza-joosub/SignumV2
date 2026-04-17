@@ -4,7 +4,9 @@ import Markets from "./pages/Markets"
 import Category from "./pages/Category"
 import Instrument from "./pages/Instrument"
 import Models from "./pages/Models"
-import COTPage from "./pages/COTPage";
+import COTOverview from "./pages/COTOverview";
+
+
 
 // Inside your routes:
 
@@ -18,7 +20,7 @@ export default function App() {
         <Route path="/markets/:category" element={<Category />} />
         <Route path="/markets/instrument/:ticker" element={<Instrument />} />
         <Route path="/models" element={<Models />} />
-        <Route path="/models/cot" element={<COTPage />} />
+        <Route path="/models/cot" element={<COTOverview />} />
       </Routes>
     </BrowserRouter>
   )

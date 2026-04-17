@@ -1,9 +1,11 @@
 import yfinance as yf
 import pandas as pd
-import numpy as np
 import requests
 import zipfile
 import io
+import json
+import anthropic
+import os
 
 INSTRUMENT_MAP = {
     # S&P 500 — all variants map to same instrument
@@ -74,7 +76,6 @@ TICKER_MAP = {
 }
 
 
-
 def download_cot_data(years, report_type='combined'):
     """
     Downloads raw CFTC Traders in Financial Futures (TFF) data.
@@ -122,43 +123,12 @@ def download_cot_data(years, report_type='combined'):
     return pd.concat(dfs, ignore_index=True)
 
 
-def find_dominant_contracts(df, instrument_name):
-    """
-    For a given instrument, shows which contract names exist,
-    how many weeks each was dominant, and the date range of dominance.
-    
-    Use this BEFORE updating INSTRUMENT_MAP to understand what to include.
-    
-    Args:
-        df              : raw COT DataFrame
-        instrument_name : str — search term e.g. 'EURO FX', 'NASDAQ', 'BITCOIN'
-        top_n           : int — how many contracts to show
-    
-    Returns:
-        pd.DataFrame — contract names, dominance count, date ranges
-    """
-    # Find all contracts matching the search term and print the variant names
-    df_filtered = df[df['Market_and_Exchange_Names'].str.contains(instrument_name)]
-    df_filtered = df_filtered[['Market_and_Exchange_Names', 'Report_Date_as_MM_DD_YYYY', 'Open_Interest_All']]
-    df_filtered_pivot = df_filtered.pivot_table(
-    index='Report_Date_as_MM_DD_YYYY',
-    columns='Market_and_Exchange_Names',
-    values='Open_Interest_All',
-    aggfunc='first' ) # in case of duplicates, take first
-
-    
-    variant_names = (df_filtered_pivot.columns.values.tolist())
-    print(f"Variants: For {instrument_name}: ") 
-    for i in variant_names:
-        print(i)
-    if len(variant_names) == 0:
-        print('Probably Searched Wrong')
-
-    df_filtered_pivot['Total'] = df_filtered_pivot.sum(axis=1, )
-
-    df_filtered_pivot_proportions = df_filtered_pivot.div(df_filtered_pivot['Total'], axis=0) * 100
-    df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
-    return df_filtered_pivot_proportions
+def wavg(group, conc_cols):
+        weights = group['Open_Interest_All']
+        total = weights.sum()
+        if total == 0:
+            return pd.Series({c: 0.0 for c in conc_cols})
+        return pd.Series({c: (group[c] * weights).sum() / total for c in conc_cols})
 
 def clean_financial_cot_data(df, instrument_map):
     ''' Dealer — financial institutions/dealers (often on the other side of client trades)
@@ -170,12 +140,25 @@ def clean_financial_cot_data(df, instrument_map):
         Concentration Report - Shows what % of open interest the top 4 and top 8 traders control'''
     
     # take only the columns we need
-    df = df[['Market_and_Exchange_Names', 
-    'Report_Date_as_MM_DD_YYYY', 
-    'Open_Interest_All', 
-    'Dealer_Positions_Long_All', 'Dealer_Positions_Short_All',
-    'Asset_Mgr_Positions_Long_All','Asset_Mgr_Positions_Short_All',
-    'Lev_Money_Positions_Long_All', 'Lev_Money_Positions_Short_All'
+    df = df[[
+        'Market_and_Exchange_Names', 
+        'Report_Date_as_MM_DD_YYYY', 
+        'Open_Interest_All', 
+
+        # Dealer
+        'Dealer_Positions_Long_All', 'Dealer_Positions_Short_All', 'Dealer_Positions_Spread_All',
+        # Asset Manager
+        'Asset_Mgr_Positions_Long_All', 'Asset_Mgr_Positions_Short_All', 'Asset_Mgr_Positions_Spread_All',
+        # Hedge Fund / Leveraged
+        'Lev_Money_Positions_Long_All', 'Lev_Money_Positions_Short_All', 'Lev_Money_Positions_Spread_All',
+        # Other Reportable
+        'Other_Rept_Positions_Long_All', 'Other_Rept_Positions_Short_All', 'Other_Rept_Positions_Spread_All',
+        # Non-Reportable
+        'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All',
+
+        # Concentration — top 4 and top 8 traders
+        'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
+        'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
     ]]
 
 
@@ -185,525 +168,282 @@ def clean_financial_cot_data(df, instrument_map):
     df['Instrument'] = df['Market_and_Exchange_Names'].map(instrument_map)
     df = df[df['Instrument'].notna()].copy()
 
+    conc_cols = [
+        'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
+        'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
+    ]
+
     cols_to_sum = df.columns.values.tolist()
     cols_to_sum.remove('Market_and_Exchange_Names')
     cols_to_sum.remove('Report_Date_as_MM_DD_YYYY')
     cols_to_sum.remove('Instrument')
-    df = (
-    df.groupby(['Instrument', 'Report_Date_as_MM_DD_YYYY'])[cols_to_sum]
-    .sum()
-    .reset_index()
+    for c in conc_cols:
+        cols_to_sum.remove(c)
+
+    # Sum position columns
+    df_summed = (
+        df.groupby(['Instrument', 'Report_Date_as_MM_DD_YYYY'])[cols_to_sum]
+        .sum()
+        .reset_index()
     )
+
+    # Weighted average concentration by OI
+    
+
+    df_conc = (
+        df.groupby(['Instrument', 'Report_Date_as_MM_DD_YYYY'])
+        .apply(wavg, conc_cols)
+        .reset_index()
+    )
+
+    df = df_summed.merge(df_conc, on=['Instrument', 'Report_Date_as_MM_DD_YYYY'])
 
 
     return df
 
-def process_COT(df_cot, instrument, start_date, end_date):
-    """
-    Args:
-        df_cot      : cleaned COT dataframe (output of clean_cot_data())
-        instrument  : str — e.g. 'SP500'
-        start_date  : str — e.g. '2020-01-01'
-        end_date    : str — e.g. '2022-12-31'
-    """
-
-    df_clean = df_cot[
-    (df_cot['Instrument'] == instrument) &
-    (df_cot['Report_Date_as_MM_DD_YYYY'] >= start_date) &
-    (df_cot['Report_Date_as_MM_DD_YYYY'] <= end_date)
-    ].copy()
-
-    df_clean["Dealer Net"] = df_clean['Dealer_Positions_Long_All'] - df_clean['Dealer_Positions_Short_All']
-    df_clean["Asset Manager Net"] = df_clean['Asset_Mgr_Positions_Long_All'] - df_clean['Asset_Mgr_Positions_Short_All'] 
-    df_clean["Levered Net"] = df_clean['Lev_Money_Positions_Long_All'] - df_clean['Lev_Money_Positions_Short_All']
-
-    df_clean["Dealer Long Proportion"] = df_clean['Dealer_Positions_Long_All']/df_clean['Open_Interest_All']
-    df_clean["Asset Manager Long Proportion"] = df_clean['Asset_Mgr_Positions_Long_All']/df_clean['Open_Interest_All']
-    df_clean["Levered Long Proportion"] = df_clean['Lev_Money_Positions_Long_All']/df_clean['Open_Interest_All']
-
-    df_clean["Dealer Short Proportion"] = df_clean['Dealer_Positions_Short_All']/df_clean['Open_Interest_All']
-    df_clean["Asset Manager Short Proportion"] = df_clean['Asset_Mgr_Positions_Short_All']/df_clean['Open_Interest_All']
-    df_clean["Levered Short Proportion"] = df_clean['Lev_Money_Positions_Short_All']/df_clean['Open_Interest_All']
-
-
-    df_clean["Dealer Crowding"] = (df_clean['Dealer_Positions_Long_All']+df_clean['Dealer_Positions_Short_All'])/df_clean['Open_Interest_All']
-    df_clean["Asset Manager Crowding"] = (df_clean['Asset_Mgr_Positions_Long_All']+df_clean['Asset_Mgr_Positions_Short_All'])/df_clean['Open_Interest_All']
-    df_clean["Levered Manager Crowding"] = (df_clean['Lev_Money_Positions_Long_All']+df_clean['Lev_Money_Positions_Short_All'])/df_clean['Open_Interest_All']
-
-    ticker = TICKER_MAP[instrument]
-    spy = yf.download(tickers=ticker, start=start_date, end=end_date)['Close']
-
-    spy_tuesday = spy[spy.index.dayofweek == 1]
-    spy_tuesday.index.name = 'Report_Date_as_MM_DD_YYYY'
-    spy_tuesday.name = 'Price_Close'  # rename the Series before merging
-
-    df_clean_merged = df_clean.merge(spy_tuesday, on='Report_Date_as_MM_DD_YYYY', how='inner')
-    #df_clean_merged = df_clean_merged.rename(columns={ticker: 'Price_Close'})
-    df_clean_merged
-
-    return df_clean_merged
 
 def feature_engineering(cot_clean):
     cot_clean["Dealer Net"] = cot_clean['Dealer_Positions_Long_All'] - cot_clean['Dealer_Positions_Short_All']
     cot_clean["Asset Manager Net"] = cot_clean['Asset_Mgr_Positions_Long_All'] - cot_clean['Asset_Mgr_Positions_Short_All'] 
     cot_clean["Levered Net"] = cot_clean['Lev_Money_Positions_Long_All'] - cot_clean['Lev_Money_Positions_Short_All']
+    cot_clean["Other Rept Positions Net"] = cot_clean['Other_Rept_Positions_Long_All'] - cot_clean['Other_Rept_Positions_Short_All']
+    cot_clean["Non Rept Positions Net"] = cot_clean['NonRept_Positions_Long_All'] - cot_clean['NonRept_Positions_Short_All']
+    
+    # In feature_engineering:
+    cot_clean["Dealer Net Pct OI"] = cot_clean["Dealer Net"] / cot_clean["Open_Interest_All"]
+    cot_clean["AM Net Pct OI"] = cot_clean["Asset Manager Net"] / cot_clean["Open_Interest_All"]
+    cot_clean["HF Net Pct OI"] = cot_clean["Levered Net"] / cot_clean["Open_Interest_All"]
+    cot_clean["Other Rept Positions Net Pct OI"] = cot_clean['Other Rept Positions Net']/cot_clean["Open_Interest_All"]
+    cot_clean["Non Rept Positions Net Pct OI"] = cot_clean['Non Rept Positions Net']/cot_clean["Open_Interest_All"]
 
-
-    cot_clean["Dealer Ratio"] = cot_clean['Dealer_Positions_Long_All']/cot_clean['Dealer_Positions_Short_All']
-    cot_clean["Asset Manager Ratio"] = cot_clean['Asset_Mgr_Positions_Long_All']/cot_clean['Asset_Mgr_Positions_Short_All'] 
-    cot_clean["Levered Ratio"] = cot_clean['Lev_Money_Positions_Long_All']/cot_clean['Lev_Money_Positions_Short_All']
-
-
-    cot_clean["Dealer Long Proportion"] = cot_clean['Dealer_Positions_Long_All']/cot_clean['Open_Interest_All']
-    cot_clean["Asset Manager Long Proportion"] = cot_clean['Asset_Mgr_Positions_Long_All']/cot_clean['Open_Interest_All']
-    cot_clean["Levered Long Proportion"] = cot_clean['Lev_Money_Positions_Long_All']/cot_clean['Open_Interest_All']
-
-    cot_clean["Dealer Short Proportion"] = cot_clean['Dealer_Positions_Short_All']/cot_clean['Open_Interest_All']
-    cot_clean["Asset Manager Short Proportion"] = cot_clean['Asset_Mgr_Positions_Short_All']/cot_clean['Open_Interest_All']
-    cot_clean["Levered Short Proportion"] = cot_clean['Lev_Money_Positions_Short_All']/cot_clean['Open_Interest_All']
-
-
-    cot_clean["Dealer Crowding"] = (cot_clean['Dealer_Positions_Long_All']+cot_clean['Dealer_Positions_Short_All'])/cot_clean['Open_Interest_All']
-    cot_clean["Asset Manager Crowding"] = (cot_clean['Asset_Mgr_Positions_Long_All']+cot_clean['Asset_Mgr_Positions_Short_All'])/cot_clean['Open_Interest_All']
-    cot_clean["Levered Manager Crowding"] = (cot_clean['Lev_Money_Positions_Long_All']+cot_clean['Lev_Money_Positions_Short_All'])/cot_clean['Open_Interest_All']
-
-    cot_clean["Other_Long"] = cot_clean["Open_Interest_All"] - (
-        cot_clean["Dealer_Positions_Long_All"] +
-        cot_clean["Asset_Mgr_Positions_Long_All"] +
-        cot_clean["Lev_Money_Positions_Long_All"]
-    )
-    cot_clean["Other_Short"] = cot_clean["Open_Interest_All"] - (
-        cot_clean["Dealer_Positions_Short_All"] +
-        cot_clean["Asset_Mgr_Positions_Short_All"] +
-        cot_clean["Lev_Money_Positions_Short_All"]
-    )
-    cot_clean["Other Long Proportion"] = cot_clean["Other_Long"] / cot_clean["Open_Interest_All"]
-    cot_clean["Other Short Proportion"] = cot_clean["Other_Short"] / cot_clean["Open_Interest_All"]
 
     return cot_clean
 
-def view_dates(cot_clean):
-    start_dates = []
-    end_dates = []
-    for instrument in cot_clean['Instrument'].unique().tolist():
-        temp = cot_clean[cot_clean['Instrument'] == instrument]
-        print(f'{instrument}: ({temp.iloc[0,1]}  <->  {temp.iloc[-1,1]})')
-        start_dates.append(temp.iloc[0,1])
-        end_dates.append(temp.iloc[-1,1])
-    return start_dates, end_dates
+
+def get_align_prices(cot_clean):
+    instrument_list = cot_clean['Instrument'].unique().tolist()
+    tickers_list = [TICKER_MAP[inst] for inst in instrument_list if inst in TICKER_MAP]
+    tickers_list
+    prices = yf.download(tickers_list,start = '2018-01-01' )['Close']
+    prices = prices.ffill()
+    prices = prices.bfill()
+    prices
+    all_dfs = []
+    for instr in instrument_list:
+        cot_specific_instrument = cot_clean[cot_clean['Instrument'] ==instr ]
+        cot_specific_instrument = cot_specific_instrument.set_index('Report_Date_as_MM_DD_YYYY')
+        ticker_name = TICKER_MAP[instr]
+        price_specific_instrument = pd.DataFrame(prices[ticker_name])
+        merged_df = cot_specific_instrument.merge(price_specific_instrument, left_index=True, right_index=True, how = 'left')
+        merged_df = merged_df.rename(columns={ticker_name: 'Price'})
+        all_dfs.append(merged_df)
+    cot_data = pd.concat(all_dfs)
+    cot_data = cot_data.reset_index()
+    return cot_data
+
+def compute_overview(cot_clean, lookback_weeks=104):
+    overview = []
+    for inst in cot_clean['Instrument'].unique():
+        df = cot_clean[cot_clean['Instrument'] == inst].copy()
+        window = df.tail(lookback_weeks)
+        
+
+        latest = window.iloc[-1]
+        dlr_pctl = (window['Dealer Net Pct OI'] < latest['Dealer Net Pct OI']).mean() * 100  
+        am_pctl = (window['AM Net Pct OI'] < latest['AM Net Pct OI']).mean() * 100
+        hf_pctl = (window['HF Net Pct OI'] < latest['HF Net Pct OI']).mean() * 100
+
+        """
+        1 Week stuff(quite noisy) ______________________
+        """
+        prev_1W = window.iloc[-2]
+        
+        dlr_chg_pct_oi_1W = float(latest['Dealer Net Pct OI'] - prev_1W['Dealer Net Pct OI'])
+        am_chg_pct_oi_1W = float(latest['AM Net Pct OI'] - prev_1W['AM Net Pct OI'])
+        hf_chg_pct_oi_1W = float(latest['HF Net Pct OI'] - prev_1W['HF Net Pct OI'])
+
+        oi_chg_1W = int(latest['Open_Interest_All'] - prev_1W['Open_Interest_All'])
+        oi_chg_pct_1W = (latest['Open_Interest_All'] - prev_1W['Open_Interest_All']) / prev_1W['Open_Interest_All']
+
+        price_1W = float(latest['Price']) if pd.notna(latest.get('Price')) else None
+        prev_price_1W = float(prev_1W['Price']) if pd.notna(prev_1W.get('Price')) else None
+        price_chg_pct_1W =  ( ( (price_1W - prev_price_1W) / prev_price_1W)*100) if (price_1W and prev_price_1W) else None
+
+
+        """
+        1 Month stuff(Less noisy) ______________________
+        """
+        prev_1M = window.iloc[-5]
+        
+
+        dlr_chg_pct_oi_1M = float(latest['Dealer Net Pct OI'] - prev_1M['Dealer Net Pct OI'])
+        am_chg_pct_oi_1M = float(latest['AM Net Pct OI'] - prev_1M['AM Net Pct OI'])
+        hf_chg_pct_oi_1M = float(latest['HF Net Pct OI'] - prev_1M['HF Net Pct OI'])
+
+        oi_chg_1M = int(latest['Open_Interest_All'] - prev_1M['Open_Interest_All'])
+        oi_chg_pct_1M = (latest['Open_Interest_All'] - prev_1M['Open_Interest_All']) / prev_1M['Open_Interest_All']
+
+        price_1M = float(latest['Price']) if pd.notna(latest.get('Price')) else None
+        prev_price_1M = float(prev_1M['Price']) if pd.notna(prev_1M.get('Price')) else None
+        price_chg_pct_1M =  ( ( (price_1M - prev_price_1M) / prev_price_1M)*100) if (price_1M and prev_price_1M) else None
+
+
+
+        conc_cols = [
+            'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
+            'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
+        ]
+
+        conc = {}
+        for col in conc_cols:
+            if col in latest.index and pd.notna(latest[col]):
+                conc[col] = float(latest[col])
+                conc[f'{col}_chg_1W'] = round(float(latest[col] - prev_1W[col]), 2) if pd.notna(prev_1W[col]) else None
+                conc[f'{col}_chg_1M'] = round(float(latest[col] - prev_1M[col]), 2) if pd.notna(prev_1M[col]) else None 
+
+        overview.append({
+                'instrument': inst,
+                'ticker': TICKER_MAP.get(inst, ''),
+                'latest_date': latest['Report_Date_as_MM_DD_YYYY'].strftime('%Y-%m-%d') if hasattr(latest['Report_Date_as_MM_DD_YYYY'], 'strftime') else str(latest['Report_Date_as_MM_DD_YYYY'])[:10],
+                'oi': int(latest['Open_Interest_All']),
+
+                # Price
+                'price': price_1W,
+                'price_chg_pct_1W': float(price_chg_pct_1W) if price_chg_pct_1W is not None else None,
+                'price_chg_pct_1M': float(price_chg_pct_1M) if price_chg_pct_1M is not None else None,
+
+                # Dealer — positioning
+                'dealer_net': int(latest['Dealer Net']),
+                'dealer_net_pct_oi': float(latest['Dealer Net Pct OI']),
+                'dealer_pctl': float(dlr_pctl),
+                'dealer_chg_pct_oi_1W': dlr_chg_pct_oi_1W,
+                'dealer_chg_pct_oi_1M': dlr_chg_pct_oi_1M,
+
+                # Asset Manager — positioning
+                'am_net': int(latest['Asset Manager Net']),
+                'am_net_pct_oi': float(latest['AM Net Pct OI']),
+                'am_pctl': float(am_pctl),
+                'am_chg_pct_oi_1W': am_chg_pct_oi_1W,
+                'am_chg_pct_oi_1M': am_chg_pct_oi_1M,
+
+                # Hedge Fund — positioning
+                'hf_net': int(latest['Levered Net']),
+                'hf_net_pct_oi': float(latest['HF Net Pct OI']),
+                'hf_pctl': float(hf_pctl),
+                'hf_chg_pct_oi_1W': hf_chg_pct_oi_1W,
+                'hf_chg_pct_oi_1M': hf_chg_pct_oi_1M,
+
+                # OI
+                'oi_chg_1W': oi_chg_1W,
+                'oi_chg_pct_1W': float(oi_chg_pct_1W),
+                'oi_chg_1M': oi_chg_1M,
+                'oi_chg_pct_1M': float(oi_chg_pct_1M),
+
+                # Concentration
+                **conc,
+            })
+
+    return overview
+
+
+
+def generate_cot_summary(overview_data, lookback_weeks=52):
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=500,
+        system = f"""You are a senior futures positioning analyst writing a weekly internal note for a macro trading desk.
+                     DATA CONTEXT:
+                    You are given CFTC Commitments of Traders (COT) data from the Traders in Financial Futures (TFF) report.
+                    Each instrument has the following fields:
+                    - dealer_net, am_net, hf_net: net contracts (long - short) for Dealers, Asset Managers, and Leveraged Money (hedge funds)
+                    - dealer_net_pct_oi, am_net_pct_oi, hf_net_pct_oi: net position as percentage of total open interest (the key normalized metric)
+                    - dealer_pctl, am_pctl, hf_pctl: percentile rank of current net/OI vs the lookback window. 0 = most net short in the window. 100 = most net long. 50 = median.
+                    - _chg_pct_oi_1W / _chg_pct_oi_1M: change in net/OI over 1 week and 1 month (in percentage points, not percent)
+                    - oi_chg_pct_1W / _1M: percentage change in total open interest
+                    - price_chg_pct_1W / _1M: percentage change in price (from aligned yfinance data)
+                    - Conc_Gross_LE_4_TDR_Long/Short_All: percentage of OI held by the top 4 traders on each side
+                    - Conc_Gross_LE_8_TDR_Long/Short_All: same for top 8
+
+                    The lookback window is provided with each request.the current data is lookback_weeks={lookback_weeks}. A 13-week lookback captures recent regime. 52-week captures a full year. This affects percentile interpretation — a p95 on 13w means "most extreme in 3 months", on 52w means "most extreme in a year."
+
+                    COVERAGE STRENGTH:
+                    COVERAGE RULES:
+                    - HIGH coverage (rates, FX): Make assertive claims. This data is close to the full picture. Percentile extremes here are genuine signals.
+                    - MODERATE coverage (equity indices): Qualify claims. Say "futures positioning suggests..." not "the market is positioned for...". Institutions have significant exposure outside futures that this data does not capture.
+                    - LOW coverage (BTC): Always caveat. Post-ETF, this data primarily reflects hedge fund basis trades, not overall institutional sentiment. Do not draw broad conclusions about "the market" from BTC futures positioning alone.
+                    - Never present a low-coverage signal with the same confidence as a high-coverage signal. If rates and BTC both show an extreme, the rates signal is far more meaningful — say so explicitly.
+
+                    INTERPRETATION GUIDANCE:
+                    - Consider what divergences between groups might imply about who will need to adjust.
+                    - Note when concentration is high enough that a single participant could move the market.
+                    - Distinguish between voluntary repositioning and forced liquidation where the data suggests it.
+                    - Weight monthly changes over weekly — single-week moves are noisy.
+                    - Consider coverage strength when making claims. Be more assertive on rates/FX, more cautious on BTC.
+                    - Asset managers (AM) include pension funds, insurance companies, and sovereign wealth funds. They operate on longer horizons with structural mandates. Their positioning changes reflect strategic allocation shifts, not short-term directional bets. Do not interpret AM moves the same way you interpret HF moves.
+                    - Dealers are market makers hedging client flow. Their positioning mirrors the opposite side of client demand. Do not interpret dealer positioning as a directional view — interpret it as a measure of how much flow they are warehousing.
+                    - Hedge funds (leveraged money) are the most tactical and reactive group. Their positioning most closely reflects short-term directional sentiment.
+
+
+                    YOUR TASK:
+                    Write a positioning note structured as follows:
+
+                    1. MACRO PICTURE (2-3 sentences): What is the overall positioning landscape saying? Are markets positioned for risk-on, risk-off, rate cuts, inflation? Synthesize across all instruments — don't just list them individually.
+
+                    2. STRONGEST SIGNALS (2-3 paragraphs): Identify the 2-3 most significant positioning setups. For each:
+                    - State the positioning fact
+                    - Interpret what it means — why is this group positioned this way? What view does it imply?
+                    - Compare across instruments where relevant (e.g. "AM is long duration but short equities, consistent with recession positioning")
+                    - Flag fragility — is this crowded? Is concentration dangerous? Who gets forced out first?
+
+                    3. CROSS-INSTRUMENT THEMES: Where do you see the same story showing up across multiple instruments? For example: are rate and FX positioning telling the same story? Does equity positioning contradict what rates are saying? Call out consistency and contradictions.
+
+                    4. KEY RISKS (2-3 bullet points): What could force repositioning? What is the market not pricing?
+
+                    Use bold for instrument names. Be direct and opinionated about what the data implies. Do not just describe the numbers — interpret what they mean for market sentiment and where the crowded or fragile trades are.
+                    Do not recommend buying or selling any instrument or give price targets.
+
+                    Keep total output under 350 words.""",
+        messages=[{
+            "role": "user",
+            "content": f"Here is the latest CFTC COT positioning overview using a {lookback_weeks}-week lookback. Summarize the key observations in under 300 words.\n\n{json.dumps(overview_data, indent=2)}"
+        }]
+    )
+    
+    return message.content[0].text
+
+
+def refresh_cot_data():
+    cot_raw = download_cot_data([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
+    cot_clean = clean_financial_cot_data(cot_raw, INSTRUMENT_MAP)
+    cot_clean
+    cot_clean = feature_engineering(cot_clean)
+    cot_clean = get_align_prices(cot_clean)
+    cot_clean.to_csv('cot_clean.csv')
+
+    for lb in [13, 26, 52]:
+        overview_data = compute_overview(cot_clean, lookback_weeks=lb)
+        
+        try:
+            summary = generate_cot_summary(overview_data, lookback_weeks=lb)
+        except Exception as e:
+            print(f"Summary generation failed for {lb}w: {e}")
+            summary = None
+        
+        output = {
+            "instruments": overview_data,
+            "summary": summary,
+        }
+        
+        with open(f'cot_overview_{lb}w.json', 'w') as f:
+            json.dump(output, f, default=str)
+    
     
 
-def refresh_cot_data():
-    """Called on startup and by weekly scheduler"""
-    import json, tempfile, os
-    print("Refreshing COT data...")
-
-    cot_raw = download_cot_data([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
-    cot_clean = clean_financial_cot_data(cot_raw, INSTRUMENT_MAP)
-    cot_clean = feature_engineering(cot_clean)
-
-    # Save CSV — atomic write
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as tmp:
-        cot_clean.to_csv(tmp.name, index=False)
-    os.replace(tmp.name, 'cot_clean.csv')
-
-    # Pre-compute insights + proof charts
-    all_insights = generate_insights(cot_clean)
-    for insight in all_insights:
-        insight['proof'] = generate_proof_chart(insight, cot_clean)
-
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
-        json.dump(all_insights, tmp, default=str)
-    os.replace(tmp.name, 'cot_insights.json')
-
-    print(f"COT refresh complete — {len(cot_clean)} rows, {len(all_insights)} insights")
 
 
-def ordinal(n):
-    n = int(n)
-    if 11 <= n % 100 <= 13:
-        return f"{n}th"
-    return f"{n}{['th','st','nd','rd'][min(n % 10, 4) if n % 10 < 4 else 0]}"
-
-
-def percentile_rank(series, value):
-    clean = series.replace([np.inf, -np.inf], np.nan).dropna()
-    if len(clean) == 0:
-        return 50.0
-    return (clean < value).mean() * 100
-
-
-GROUPS = [
-    {
-        'name': 'Dealer',
-        'net': 'Dealer Net',
-        'ratio': 'Dealer Ratio',
-        'crowding': 'Dealer Crowding',
-        'long_prop': 'Dealer Long Proportion',
-        'short_prop': 'Dealer Short Proportion',
-        'long_abs': 'Dealer_Positions_Long_All',
-        'short_abs': 'Dealer_Positions_Short_All',
-    },
-    {
-        'name': 'Asset Manager',
-        'net': 'Asset Manager Net',
-        'ratio': 'Asset Manager Ratio',
-        'crowding': 'Asset Manager Crowding',
-        'long_prop': 'Asset Manager Long Proportion',
-        'short_prop': 'Asset Manager Short Proportion',
-        'long_abs': 'Asset_Mgr_Positions_Long_All',
-        'short_abs': 'Asset_Mgr_Positions_Short_All',
-    },
-    {
-        'name': 'Hedge Fund',
-        'net': 'Levered Net',
-        'ratio': 'Levered Ratio',
-        'crowding': 'Levered Manager Crowding',
-        'long_prop': 'Levered Long Proportion',
-        'short_prop': 'Levered Short Proportion',
-        'long_abs': 'Lev_Money_Positions_Long_All',
-        'short_abs': 'Lev_Money_Positions_Short_All',
-    },
-]
-
-
-def generate_insights(cot_clean, lookback_weeks=104):
-    insights = []
-    flagged = set()  # prevent duplicate signals
-    latest = cot_clean.groupby('Instrument').last()
-
-    for inst, row in latest.iterrows():
-        hist = cot_clean[cot_clean['Instrument'] == inst].tail(lookback_weeks)
-        has_prev = len(hist) >= 2
-        prev = hist.iloc[-2] if has_prev else None
-
-        for g in GROUPS:
-
-            # ── 1. WEEKLY FLIP ────────────────────────────────────
-            # Did this group cross from net long to net short (or vice versa)?
-            # Confirmed by checking the sign of net position changed
-            if has_prev and prev[g['net']] * row[g['net']] < 0:
-                direction = 'net long' if row[g['net']] > 0 else 'net short'
-                insights.append({
-                    'type': 'flip',
-                    'instrument': inst,
-                    'actor': g['name'],
-                    'column': g['net'],
-                    'text': f"{g['name']}s flipped {inst} to {direction} this week",
-                    'severity': 'high',
-                })
-
-            # ── 2. DEALER NOT HEDGING ─────────────────────────────
-            # Dealers normally intermediate client flow — when they step back
-            # or break their typical posture, something structural changed
-            if g['name'] == 'Dealer':
-                crowding_pctl = percentile_rank(hist[g['crowding']], row[g['crowding']])
-                net_pctl = percentile_rank(hist[g['net']], row[g['net']])
-
-                # Dealers pulling back entirely
-                if crowding_pctl < 10:
-                    insights.append({
-                        'type': 'dealer_absent',
-                        'instrument': inst,
-                        'actor': g['name'],
-                        'column': g['crowding'],
-                        'current': float(row[g['crowding']]),
-                        'percentile': float(crowding_pctl),
-                        'text': f"Dealers pulling back on {inst} — crowding at {row[g['crowding']]:.0%} of OI ({ordinal(crowding_pctl)} percentile). Reduced hedging activity",
-                        'severity': 'high',
-                    })
-                    flagged.add((inst, 'Dealer', 'crowding_low'))
-
-                # Dealers on an unusual side of the trade
-                if net_pctl > 95:
-                    insights.append({
-                        'type': 'dealer_unusual',
-                        'instrument': inst,
-                        'actor': g['name'],
-                        'column': g['net'],
-                        'current': float(row[g['net']]),
-                        'percentile': float(net_pctl),
-                        'text': f"Dealers unusually net long on {inst} ({ordinal(net_pctl)} percentile) — not in typical hedging posture",
-                        'severity': 'high',
-                    })
-                elif net_pctl < 5:
-                    insights.append({
-                        'type': 'dealer_unusual',
-                        'instrument': inst,
-                        'actor': g['name'],
-                        'column': g['net'],
-                        'current': float(row[g['net']]),
-                        'percentile': float(net_pctl),
-                        'text': f"Dealers extremely net short on {inst} ({ordinal(net_pctl)} percentile) — heavy hedging or directional bet",
-                        'severity': 'high',
-                    })
-
-
-            # ── 4. CROWDING EXTREMES ──────────────────────────────
-            # One group dominating open interest at historical highs/lows
-            # Skip if already flagged by dealer_absent check
-            crowding_pctl = percentile_rank(hist[g['crowding']], row[g['crowding']])
-            if crowding_pctl > 90:
-                insights.append({
-                    'type': 'crowding',
-                    'instrument': inst,
-                    'actor': g['name'],
-                    'column': g['crowding'],
-                    'current': float(row[g['crowding']]),
-                    'percentile': float(crowding_pctl),
-                    'text': f"{g['name']} crowding on {inst} at {ordinal(crowding_pctl)} percentile ({row[g['crowding']]:.0%} of OI) — historically elevated",
-                    'severity': 'high',
-                })
-            elif crowding_pctl < 10 and (inst, g['name'], 'crowding_low') not in flagged:
-                insights.append({
-                    'type': 'crowding',
-                    'instrument': inst,
-                    'actor': g['name'],
-                    'column': g['crowding'],
-                    'current': float(row[g['crowding']]),
-                    'percentile': float(crowding_pctl),
-                    'text': f"{g['name']} crowding on {inst} at {ordinal(crowding_pctl)} percentile ({row[g['crowding']]:.0%} of OI) — unusually low participation",
-                    'severity': 'medium',
-                })
-
-            # ── 5. PROPORTION DIVERGENCE ──────────────────────────
-            # Two groups on opposite sides — meaningful only when proportions are large
-            # Check dealer vs hedge fund, and asset manager vs hedge fund
-            if g['name'] == 'Dealer':
-                hf = GROUPS[2]  # Hedge Fund
-                d_long = row[g['long_prop']]
-                d_short = row[g['short_prop']]
-                hf_long = row[hf['long_prop']]
-                hf_short = row[hf['short_prop']]
-
-                if d_long > 0.4 and hf_short > 0.3:
-                    insights.append({
-                        'type': 'divergence',
-                        'instrument': inst,
-                        'actor': 'Dealer vs Hedge Fund',
-                        'text': f"Dealers hold {d_long:.0%} of longs while Hedge Funds hold {hf_short:.0%} of shorts on {inst} — strong divergence",
-                        'severity': 'high',
-                    })
-                elif d_short > 0.4 and hf_long > 0.3:
-                    insights.append({
-                        'type': 'divergence',
-                        'instrument': inst,
-                        'actor': 'Dealer vs Hedge Fund',
-                        'text': f"Dealers hold {d_short:.0%} of shorts while Hedge Funds hold {hf_long:.0%} of longs on {inst} — strong divergence",
-                        'severity': 'high',
-                    })
-
-            if g['name'] == 'Asset Manager':
-                hf = GROUPS[2]
-                am_long = row[g['long_prop']]
-                hf_short = row[hf['short_prop']]
-                am_short = row[g['short_prop']]
-                hf_long = row[hf['long_prop']]
-
-                if am_long > 0.35 and hf_short > 0.25:
-                    insights.append({
-                        'type': 'divergence',
-                        'instrument': inst,
-                        'actor': 'Asset Manager vs Hedge Fund',
-                        'text': f"Asset Managers ({am_long:.0%} of longs) vs Hedge Funds ({hf_short:.0%} of shorts) on {inst}",
-                        'severity': 'medium',
-                    })
-                elif am_short > 0.35 and hf_long > 0.25:
-                    insights.append({
-                        'type': 'divergence',
-                        'instrument': inst,
-                        'actor': 'Asset Manager vs Hedge Fund',
-                        'text': f"Asset Managers ({am_short:.0%} of shorts) vs Hedge Funds ({hf_long:.0%} of longs) on {inst}",
-                        'severity': 'medium',
-                    })
-
-            # ── 6. WEEKLY PROPORTION SHIFTS ───────────────────────
-            # Big moves in proportion, confirmed by absolute contract change
-            # Both must agree — prevents false signals from OI shrinkage
-            if has_prev:
-                long_shift = row[g['long_prop']] - prev[g['long_prop']]
-                long_delta = row[g['long_abs']] - prev[g['long_abs']]
-                short_shift = row[g['short_prop']] - prev[g['short_prop']]
-                short_delta = row[g['short_abs']] - prev[g['short_abs']]
-
-                if abs(long_shift) > 0.05 and long_shift * long_delta > 0:
-                    direction = 'added' if long_shift > 0 else 'cut'
-                    insights.append({
-                        'type': 'shift',
-                        'instrument': inst,
-                        'actor': g['name'],
-                        'column': g['long_prop'],
-                        'delta_abs': int(abs(long_delta)),
-                        'text': f"{g['name']}s {direction} longs on {inst} — proportion moved {long_shift:+.1%} of OI, backed by {abs(long_delta):,.0f} contracts",
-                        'severity': 'medium',
-                    })
-
-                if abs(short_shift) > 0.05 and short_shift * short_delta > 0:
-                    direction = 'added' if short_shift > 0 else 'cut'
-                    insights.append({
-                        'type': 'shift',
-                        'instrument': inst,
-                        'actor': g['name'],
-                        'column': g['short_prop'],
-                        'delta_abs': int(abs(short_delta)),
-                        'text': f"{g['name']}s {direction} shorts on {inst} — proportion moved {short_shift:+.1%} of OI, backed by {abs(short_delta):,.0f} contracts",
-                        'severity': 'medium',
-                    })
-
-    # Sort: high first, then by signal importance
-    type_priority = {
-        'flip': 0,
-        'dealer_absent': 1,
-        'dealer_unusual': 2,
-        'divergence': 3,
-        'crowding': 5,
-        'shift': 6,
-    }
-    return sorted(
-        insights,
-        key=lambda x: (
-            0 if x['severity'] == 'high' else 1,
-            type_priority.get(x['type'], 99),
-        ),
-    )
-
-
-
-def generate_proof_chart(insight, cot_clean, lookback_weeks=104):
-    """
-    Takes a single insight dict and returns chart-ready data
-    based on the insight type.
-    """
-    inst = insight['instrument']
-    hist = cot_clean[cot_clean['Instrument'] == inst].tail(lookback_weeks)
-    itype = insight['type']
-
-    # ── DISTRIBUTION ──────────────────────────────────────────
-    # Used by: ratio_extreme, crowding, dealer_absent, dealer_unusual
-    if itype in ('ratio_extreme', 'crowding', 'dealer_absent', 'dealer_unusual'):
-        col = insight['column']
-        series = hist[col].replace([np.inf, -np.inf], np.nan).dropna()
-        current = insight['current']
-        pctl = insight['percentile']
-
-        if len(series) < 5:
-            return None
-
-        counts, edges = np.histogram(series, bins=20)
-        current_bin = int(np.clip(np.digitize(current, edges) - 1, 0, len(counts) - 1))
-
-        return {
-            'chart_type': 'distribution',
-            'column': col,
-            'current': float(current),
-            'percentile': float(pctl),
-            'p5': float(series.quantile(0.05)),
-            'p95': float(series.quantile(0.95)),
-            'median': float(series.quantile(0.50)),
-            'bins': [
-                {
-                    'x': float(edges[i]),
-                    'width': float(edges[i + 1] - edges[i]),
-                    'height': int(counts[i]),
-                    'is_current': i == current_bin,
-                }
-                for i in range(len(counts))
-            ],
-        }
-
-    # ── PROPORTION BARS ───────────────────────────────────────
-    # Used by: divergence
-    elif itype == 'divergence':
-        row = hist.iloc[-1]
-        return {
-            'chart_type': 'proportion_bars',
-            'longs': {
-                'dealer': float(row['Dealer Long Proportion']),
-                'asset_mgr': float(row['Asset Manager Long Proportion']),
-                'hedge_fund': float(row['Levered Long Proportion']),
-            },
-            'shorts': {
-                'dealer': float(row['Dealer Short Proportion']),
-                'asset_mgr': float(row['Asset Manager Short Proportion']),
-                'hedge_fund': float(row['Levered Short Proportion']),
-            },
-        }
-
-    # ── WEEKLY BARS ───────────────────────────────────────────
-    # Used by: shift
-    elif itype == 'shift':
-        col = insight['column']
-        recent = hist.tail(8).copy()
-
-        values = recent[col].tolist()
-        dates = recent['Report_Date_as_MM_DD_YYYY'].dt.strftime('%m/%d').tolist()
-
-        delta_prop = float(values[-1] - values[-2]) if len(values) >= 2 else 0.0
-
-        return {
-            'chart_type': 'weekly_bars',
-            'column': col,
-            'actor': insight['actor'],
-            'dates': dates,
-            'values': [float(v) for v in values],
-            'delta_prop': delta_prop,
-            'delta_abs': int(insight.get('delta_abs', 0)),
-        }
-
-    # ── BEFORE / AFTER ────────────────────────────────────────
-    # Used by: flip
-    elif itype == 'flip':
-        net_col = insight['column']
-        recent = hist.tail(8).copy()
-
-        values = recent[net_col].tolist()
-        dates = recent['Report_Date_as_MM_DD_YYYY'].dt.strftime('%m/%d').tolist()
-
-        return {
-            'chart_type': 'before_after',
-            'column': net_col,
-            'actor': insight['actor'],
-            'dates': dates,
-            'values': [float(v) for v in values],
-            'prev_val': float(values[-2]) if len(values) >= 2 else 0.0,
-            'curr_val': float(values[-1]),
-            'prev_date': dates[-2] if len(dates) >= 2 else '',
-            'curr_date': dates[-1],
-        }
-
-    return None
-
-
-def refresh_cot_data():
-    """Called on startup and by weekly scheduler"""
-    import json, tempfile, os
-    print("Refreshing COT data...")
-
-    cot_raw = download_cot_data([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
-    cot_clean = clean_financial_cot_data(cot_raw, INSTRUMENT_MAP)
-    cot_clean = feature_engineering(cot_clean)
-
-    # Save CSV — atomic write
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as tmp:
-        cot_clean.to_csv(tmp.name, index=False)
-    os.replace(tmp.name, 'cot_clean.csv')
-
-    # Pre-compute insights + proof charts
-    all_insights = generate_insights(cot_clean)
-    for insight in all_insights:
-        insight['proof'] = generate_proof_chart(insight, cot_clean)
-
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp:
-        json.dump(all_insights, tmp, default=str)
-    os.replace(tmp.name, 'cot_insights.json')
-
-    print(f"COT refresh complete — {len(cot_clean)} rows, {len(all_insights)} insights")
-
-
-
-
-
-
+ 
 
 
 
