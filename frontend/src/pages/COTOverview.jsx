@@ -77,7 +77,7 @@ function LoadingScreen({ onComplete }) {
       opacity: fading ? 0 : 1, transition: "opacity 0.4s",
     }}>
       <div style={{ marginBottom: 32 }}>
-        <span style={{ fontFamily: M.serif, fontSize: 22, fontWeight: 900, color: G.text }}>Signum</span>
+        <span style={{ fontFamily: M.serif, fontSize: 22, fontWeight: 900, color: G.text }}>Kurtopy</span>
         <span style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, letterSpacing: "2px", textTransform: "uppercase", marginLeft: 6 }}>Analytics</span>
       </div>
       <div style={{ width: 480, background: G.s1, border: `1px solid ${G.border2}`, borderRadius: 4, overflow: "hidden", fontFamily: M.mono, fontSize: 11 }}>
@@ -116,7 +116,7 @@ function Nav({ navigate }) {
     }}>
       <div style={{ display: "flex", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 5, cursor: "pointer" }} onClick={() => navigate("/")}>
-          <span style={{ fontFamily: M.serif, fontSize: 17, fontWeight: 900, color: G.textInv }}>Signum</span>
+          <span style={{ fontFamily: M.serif, fontSize: 17, fontWeight: 900, color: G.textInv }}>Kurtopy</span>
           <span style={{ fontFamily: M.mono, fontSize: 8, color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
         </div>
         <span style={{ fontFamily: M.mono, fontSize: 10, color: G.textInv3, marginLeft: 16 }}>
@@ -568,7 +568,7 @@ export default function COTOverview() {
       </div>
 
       <footer className="cot-footer" style={{ background: G.bgDarker, borderTop: `1px solid ${G.borderDk}`, padding: "20px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: M.serif, fontSize: 15, fontWeight: 700, color: G.textInv3 }}>Signum</span>
+        <span style={{ fontFamily: M.serif, fontSize: 15, fontWeight: 700, color: G.textInv3 }}>Kurtopy</span>
         <span style={{ fontFamily: M.mono, fontSize: 10, color: G.textInv3, letterSpacing: "0.5px" }}>COT data via CFTC -- For informational purposes only</span>
       </footer>
     </div>

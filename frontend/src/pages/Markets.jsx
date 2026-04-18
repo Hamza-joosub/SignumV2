@@ -175,7 +175,7 @@ function Nav({ navigate }) {
       padding: "0 40px", background: G.bgDark, borderBottom: `1px solid ${G.borderDk}`,
     }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 5, cursor: "pointer" }} onClick={() => navigate("/")}>
-        <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 900, color: G.textInv, letterSpacing: "-0.3px" }}>Signum</span>
+        <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 900, color: G.textInv, letterSpacing: "-0.3px" }}>Kurtopy</span>
         <span style={{ fontSize: 8, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
       </div>
       <div style={{ display: "flex" }}>
@@ -512,7 +512,7 @@ export default function Markets() {
         padding: "20px 40px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, color: G.textInv3 }}>Signum</span>
+        <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, color: G.textInv3 }}>Kurtopy</span>
         <span style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "0.5px" }}>
           Market data via yFinance · For informational purposes only
         </span>

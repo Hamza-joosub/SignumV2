@@ -56,7 +56,7 @@ function Nav({ navigate }) {
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, cursor: "pointer" }}
         onClick={() => navigate("/")}>
         <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, color: G.text, letterSpacing: "-0.5px" }}>
-          Signum
+          Kurtopy
         </span>
         <span style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.text3, letterSpacing: "2px", textTransform: "uppercase" }}>
           Analytics
@@ -330,7 +330,7 @@ export default function Landing() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, color: G.textInv3 }}>
-          Signum
+          Kurtopy
         </span>
         <span style={{ fontSize: 10, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "0.5px" }}>
           Market data via yFinance · For informational purposes only
