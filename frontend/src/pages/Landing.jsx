@@ -102,20 +102,51 @@ export default function Landing() {
         @media (max-width: 640px) {
           nav { padding: 0 16px !important; gap: 12px; }
           nav > div:last-child { gap: 20px !important; }
+
+          .hero-section { padding: 36px 20px 0 !important; }
+          .hero-h1 br, .hero-h2 br,
+          .cta-h2 br, .features-h2 br { display: none; }
+
+          .chart-block { margin-top: 36px !important; padding-top: 28px !important; }
+          .chart-label-row {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+            padding: 0 20px !important;
+          }
+
+          .subhead-section { padding: 48px 20px 56px !important; }
+          .cta-buttons { flex-direction: column; gap: 12px !important; }
+          .cta-buttons button { width: 100%; padding: 15px 20px !important; }
+
+          .features-section { padding: 56px 20px !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .feature-card { border-radius: 0 !important; }
+          .feature-card:first-child { border-radius: 8px 8px 0 0 !important; }
+          .feature-card:last-child { border-radius: 0 0 8px 8px !important; }
+
+          .dark-cta { padding: 64px 20px !important; }
+
+          .landing-footer {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+            padding: 20px !important;
+          }
         }
       `}</style>
 
       <Nav navigate={navigate} />
 
       {/* ── HERO ── */}
-      <section style={{
+      <section className="hero-section" style={{
         maxWidth: 960,
         margin: "0 auto",
         padding: "52px 40px 0",
         textAlign: "center",
       }}>
         {/* headline */}
-        <h1 className="fu1" style={{
+        <h1 className="fu1 hero-h1" style={{
           fontFamily: "'Playfair Display',serif",
           fontSize: "clamp(52px, 7.5vw, 92px)",
           fontWeight: 900,
@@ -128,7 +159,7 @@ export default function Landing() {
         </h1>
 
         {/* italic kicker */}
-        <h2 className="fu2" style={{
+        <h2 className="fu2 hero-h2" style={{
           fontFamily: "'Playfair Display',serif",
           fontSize: "clamp(48px, 7vw, 88px)",
           fontWeight: 700,
@@ -143,7 +174,7 @@ export default function Landing() {
       </section>
 
       {/* ── CHART IMAGE (full width, dark block) ── */}
-      <div className="fu3" style={{
+      <div className="fu3 chart-block" style={{
         width: "100%",
         background: G.bgDark,
         margin: "52px 0 0",
@@ -153,7 +184,7 @@ export default function Landing() {
         overflow: "hidden",
       }}>
         {/* chart label */}
-        <div style={{
+        <div className="chart-label-row" style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 40px", marginBottom: 24,
         }}>
@@ -185,7 +216,7 @@ export default function Landing() {
       </div>
 
       {/* ── SUB-HEADLINE + CTA ── */}
-      <section style={{
+      <section className="subhead-section" style={{
         maxWidth: 640,
         margin: "0 auto",
         padding: "72px 40px 80px",
@@ -199,7 +230,7 @@ export default function Landing() {
           without writing a single formula. The quant toolkit, built for everyone.
         </p>
 
-        <div className="fu6" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
+        <div className="fu6 cta-buttons" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
           <button
             onClick={() => navigate("/markets")}
             style={{
@@ -243,7 +274,7 @@ export default function Landing() {
       </div>
 
       {/* ── FEATURES ── */}
-      <section style={{ maxWidth: 1160, margin: "0 auto", padding: "80px 40px" }}>
+      <section className="features-section" style={{ maxWidth: 1160, margin: "0 auto", padding: "80px 40px" }}>
         <div style={{ marginBottom: 52 }}>
           <p style={{
             fontSize: 10, fontFamily: "'DM Mono',monospace", color: G.text3,
@@ -251,7 +282,7 @@ export default function Landing() {
           }}>
             What's inside
           </p>
-          <h2 style={{
+          <h2 className="features-h2" style={{
             fontFamily: "'Playfair Display',serif",
             fontSize: "clamp(26px, 2.8vw, 38px)",
             fontWeight: 700, letterSpacing: "-0.5px", color: G.text,
@@ -260,9 +291,9 @@ export default function Landing() {
           </h2>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
+        <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
           {FEATURES.map((f, i) => (
-            <div key={i} style={{
+            <div key={i} className="feature-card" style={{
               padding: "36px 32px",
               background: i === 1 ? G.bgDark : G.s1,
               borderRadius: i === 0 ? "8px 0 0 8px" : i === 2 ? "0 8px 8px 0" : 0,
@@ -287,14 +318,14 @@ export default function Landing() {
       </section>
 
       {/* ── DARK CTA BAND ── */}
-      <section style={{ background: G.bgDarker, padding: "88px 40px", textAlign: "center" }}>
+      <section className="dark-cta" style={{ background: G.bgDarker, padding: "88px 40px", textAlign: "center" }}>
         <p style={{
           fontSize: 10, fontFamily: "'DM Mono',monospace",
           color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 20,
         }}>
           Get started
         </p>
-        <h2 style={{
+        <h2 className="cta-h2" style={{
           fontFamily: "'Playfair Display',serif",
           fontSize: "clamp(28px, 3.2vw, 46px)",
           fontWeight: 900, letterSpacing: "-0.5px",
@@ -324,7 +355,7 @@ export default function Landing() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{
+      <footer className="landing-footer" style={{
         background: G.bgDarker, borderTop: `1px solid ${G.borderDk}`,
         padding: "24px 40px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
