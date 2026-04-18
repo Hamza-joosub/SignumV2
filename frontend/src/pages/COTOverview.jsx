@@ -80,7 +80,7 @@ function LoadingScreen({ onComplete }) {
         <span style={{ fontFamily: M.serif, fontSize: 22, fontWeight: 900, color: G.text }}>Kurtopy</span>
         <span style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, letterSpacing: "2px", textTransform: "uppercase", marginLeft: 6 }}>Analytics</span>
       </div>
-      <div style={{ width: 480, background: G.s1, border: `1px solid ${G.border2}`, borderRadius: 4, overflow: "hidden", fontFamily: M.mono, fontSize: 11 }}>
+      <div style={{ width: "min(480px, 92vw)", background: G.s1, border: `1px solid ${G.border2}`, borderRadius: 4, overflow: "hidden", fontFamily: M.mono, fontSize: 11 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", background: G.s2, borderBottom: `1px solid ${G.border}` }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff5f56" }} />
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ffbd2e" }} />
@@ -93,7 +93,7 @@ function LoadingScreen({ onComplete }) {
           ))}
         </div>
       </div>
-      <div style={{ width: 480, marginTop: 16 }}>
+      <div style={{ width: "min(480px, 92vw)", marginTop: 16 }}>
         <div style={{ height: 2, background: G.border, borderRadius: 1, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${pct}%`, background: M.green, transition: "width 0.3s" }} />
         </div>
@@ -119,8 +119,14 @@ function Nav({ navigate }) {
           <span style={{ fontFamily: M.serif, fontSize: 17, fontWeight: 900, color: G.textInv }}>Kurtopy</span>
           <span style={{ fontFamily: M.mono, fontSize: 8, color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
         </div>
-        <span style={{ fontFamily: M.mono, fontSize: 10, color: G.textInv3, marginLeft: 16 }}>
-          <span style={{ color: G.borderDk, margin: "0 6px" }}>/</span>models
+        <span className="cot-breadcrumb" style={{ fontFamily: M.mono, fontSize: 10, color: G.textInv3, marginLeft: 16 }}>
+          <span style={{ color: G.borderDk, margin: "0 6px" }}>/</span>
+          <span
+            onClick={() => navigate("/models")}
+            style={{ cursor: "pointer", color: G.textInv3, transition: "color .15s" }}
+            onMouseEnter={e => e.currentTarget.style.color = G.textInv}
+            onMouseLeave={e => e.currentTarget.style.color = G.textInv3}
+          >models</span>
           <span style={{ color: G.borderDk, margin: "0 6px" }}>/</span>
           <span style={{ color: G.textInv2 }}>cot</span>
         </span>
@@ -377,6 +383,7 @@ export default function COTOverview() {
           .cot-page { padding: 16px 12px !important; }
           .cot-nav { padding: 0 16px !important; }
           .cot-nav-links { display: none !important; }
+          .cot-breadcrumb { display: none !important; }
           .cot-header-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
           .cot-title-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
           .cot-title h1 { font-size: 20px !important; }

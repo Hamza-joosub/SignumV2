@@ -236,9 +236,9 @@ function Nav({ navigate }) {
     }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 5, cursor: "pointer" }} onClick={() => navigate("/")}>
         <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 900, color: G.textInv, letterSpacing: "-0.3px" }}>Kurtopy</span>
-        <span style={{ fontSize: 8, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
+        <span className="nav-analytics" style={{ fontSize: 8, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
       </div>
-      <div style={{ display: "flex" }}>
+      <div className="nav-buttons" style={{ display: "flex" }}>
         {["Overview", "Models", "Markets"].map(label => {
           const active = label === "Markets";
           return (
@@ -258,19 +258,24 @@ function Nav({ navigate }) {
         })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
+        <div className="nav-search-box" style={{
           display: "flex", alignItems: "center", gap: 7,
           background: "rgba(255,255,255,0.06)", border: `1px solid ${G.borderDk}`,
           borderRadius: 4, padding: "5px 12px",
         }}>
-          <span style={{ fontSize: 11, color: G.textInv3 }}></span>
-          <input placeholder="Search ticker..." value={q}
+          <label htmlFor="nav-search-input" style={{ display: "flex", alignItems: "center", cursor: "pointer", color: G.textInv3 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </label>
+          <input id="nav-search-input" className="nav-search-input" placeholder="Search ticker..." value={q}
             onChange={e => setQ(e.target.value.toUpperCase())}
             onKeyDown={e => { if (e.key === "Enter" && q.trim()) { navigate(`/markets/instrument/${q.trim()}`); setQ(""); } }}
             style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: G.textInv, width: 110, fontFamily: "'DM Mono',monospace" }}
           />
         </div>
-        <div style={{
+        <div className="nav-avatar" style={{
           width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.12)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 11, fontWeight: 600, color: G.textInv, cursor: "pointer",
@@ -319,6 +324,16 @@ export default function Category() {
         ::placeholder { color:${G.text3}; }
         ::-webkit-scrollbar { width:4px; }
         ::-webkit-scrollbar-thumb { background:${G.border2}; border-radius:2px; }
+        @media (max-width: 768px) {
+          nav { padding: 0 16px !important; }
+          .nav-analytics { display: none !important; }
+          .nav-buttons button { padding: 5px 10px !important; font-size: 11px !important; }
+          .nav-search-input { width: 0 !important; padding: 0 !important; transition: width 0.2s; }
+          .nav-search-input::placeholder { opacity: 0; }
+          .nav-search-box:focus-within .nav-search-input { width: 160px !important; }
+          .nav-search-box:focus-within .nav-search-input::placeholder { opacity: 1; }
+          nav:has(.nav-search-box:focus-within) .nav-buttons { display: none !important; }
+        }
       `}</style>
 
       <Nav navigate={navigate} />
