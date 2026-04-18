@@ -108,6 +108,7 @@ function LoadingScreen({ onComplete }) {
 // ── NAV ─────────────────────────────────────────────────────────────────
 
 function Nav({ navigate }) {
+  const [q, setQ] = useState("");
   return (
     <nav className="cot-nav" style={{
       position: "sticky", top: 0, zIndex: 100,
@@ -117,7 +118,7 @@ function Nav({ navigate }) {
       <div style={{ display: "flex", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 5, cursor: "pointer" }} onClick={() => navigate("/")}>
           <span style={{ fontFamily: M.serif, fontSize: 17, fontWeight: 900, color: G.textInv }}>Kurtopy</span>
-          <span style={{ fontFamily: M.mono, fontSize: 8, color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
+          <span className="nav-analytics" style={{ fontFamily: M.mono, fontSize: 8, color: G.textInv3, letterSpacing: "2px", textTransform: "uppercase" }}>Analytics</span>
         </div>
         <span className="cot-breadcrumb" style={{ fontFamily: M.mono, fontSize: 10, color: G.textInv3, marginLeft: 16 }}>
           <span style={{ color: G.borderDk, margin: "0 6px" }}>/</span>
@@ -148,6 +149,30 @@ function Nav({ navigate }) {
             >{label}</button>
           );
         })}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="nav-search-box" style={{
+          display: "flex", alignItems: "center", gap: 7,
+          background: "rgba(255,255,255,0.06)", border: `1px solid ${G.borderDk}`,
+          borderRadius: 4, padding: "5px 12px",
+        }}>
+          <label htmlFor="nav-search-input" style={{ display: "flex", alignItems: "center", cursor: "pointer", color: G.textInv3 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </label>
+          <input id="nav-search-input" className="nav-search-input" placeholder="Search ticker..." value={q}
+            onChange={e => setQ(e.target.value.toUpperCase())}
+            onKeyDown={e => { if (e.key === "Enter" && q.trim()) { navigate(`/markets/instrument/${q.trim()}`); setQ(""); } }}
+            style={{ background: "none", border: "none", outline: "none", fontSize: 12, color: G.textInv, width: 110, fontFamily: M.mono }}
+          />
+        </div>
+        <div className="nav-avatar" style={{
+          width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.12)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 600, color: G.textInv, cursor: "pointer",
+        }}>H</div>
       </div>
     </nav>
   );
@@ -268,79 +293,6 @@ function DetailPanel({ inst, tf }) {
   );
 }
 
-// ── SUMMARY ─────────────────────────────────────────────────────────────
-
-function computeSummary(data, tf) {
-  if (!data.length) return [];
-  const items = [];
-  const groups = [
-    { key: "dealer_pctl", label: "Dealer", chgKey: tf === "1W" ? "dealer_chg_pct_oi_1W" : "dealer_chg_pct_oi_1M" },
-    { key: "am_pctl", label: "Asset Mgr", chgKey: tf === "1W" ? "am_chg_pct_oi_1W" : "am_chg_pct_oi_1M" },
-    { key: "hf_pctl", label: "Hedge Fund", chgKey: tf === "1W" ? "hf_chg_pct_oi_1W" : "hf_chg_pct_oi_1M" },
-  ];
-  data.forEach(inst => { groups.forEach(g => { const p = inst[g.key]; if (p >= 90) items.push({ inst: inst.instrument, group: g.label, pctl: p, side: "long", type: "extreme" }); if (p <= 10) items.push({ inst: inst.instrument, group: g.label, pctl: p, side: "short", type: "extreme" }); }); });
-  let biggestMove = null, biggestMoveAbs = 0;
-  data.forEach(inst => { groups.forEach(g => { const chg = inst[g.chgKey]; if (chg != null && Math.abs(chg) > biggestMoveAbs) { biggestMoveAbs = Math.abs(chg); biggestMove = { inst: inst.instrument, group: g.label, chg }; } }); });
-  if (biggestMove) items.push({ ...biggestMove, type: "move" });
-  const oiKey = tf === "1W" ? "oi_chg_pct_1W" : "oi_chg_pct_1M";
-  let biggestOI = null, biggestOIAbs = 0;
-  data.forEach(inst => { if (Math.abs(inst[oiKey] || 0) > biggestOIAbs) { biggestOIAbs = Math.abs(inst[oiKey] || 0); biggestOI = { inst: inst.instrument, chg: inst[oiKey] }; } });
-  if (biggestOI) items.push({ ...biggestOI, type: "oi" });
-  return items;
-}
-
-function SummaryBar({ data, tf }) {
-  const items = computeSummary(data, tf);
-  const extremes = items.filter(i => i.type === "extreme");
-  const move = items.find(i => i.type === "move");
-  const oi = items.find(i => i.type === "oi");
-  if (!extremes.length && !move && !oi) return null;
-  const byInst = {};
-  extremes.forEach(e => { if (!byInst[e.inst]) byInst[e.inst] = []; byInst[e.inst].push(e); });
-  const dot = (color) => ({ display: "inline-block", width: 4, height: 4, borderRadius: "50%", background: color, marginRight: 6 });
-
-  return (
-    <div className="cot-summary-bar" style={{ background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: "14px 20px", fontFamily: M.mono, fontSize: 10, color: G.text3 }}>
-      <span style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2, display: "block", marginBottom: 10 }}>{tf === "1W" ? "Weekly" : "Monthly"} report</span>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {Object.keys(byInst).length > 0 && (
-          <div>
-            <div style={{ fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Extreme positioning</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 8 }}>
-              {Object.entries(byInst).map(([inst, readings]) => (
-                <div key={inst} style={{ display: "flex", alignItems: "baseline", gap: 6, lineHeight: 1.6 }}>
-                  <span style={dot(G.text3)} />
-                  <span style={{ color: G.text, fontWeight: 500 }}>{inst}</span>
-                  <span style={{ color: G.text3 }}>--</span>
-                  {readings.map((e, i) => (
-                    <span key={i}>{i > 0 && <span style={{ color: G.text3 }}>, </span>}<span style={{ color: G.text2 }}>{e.group}</span>{" "}<span style={{ color: e.side === "long" ? M.green : M.red, fontWeight: 500 }}>p{e.pctl.toFixed(0)}</span>{" "}<span style={{ color: G.text3 }}>({e.side})</span></span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {move && (
-          <div>
-            <div style={{ fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>{`Largest ${tf} move`}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, paddingLeft: 8, lineHeight: 1.6 }}>
-              <span style={dot(move.chg >= 0 ? M.green : M.red)} /><span style={{ color: G.text, fontWeight: 500 }}>{move.inst}</span><span style={{ color: G.text3 }}>--</span><span style={{ color: G.text2 }}>{move.group}</span><span style={{ color: move.chg >= 0 ? M.green : M.red, fontWeight: 500 }}>{move.chg >= 0 ? "+" : ""}{(move.chg * 100).toFixed(2)}pp of OI</span>
-            </div>
-          </div>
-        )}
-        {oi && (
-          <div>
-            <div style={{ fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Largest OI change</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, paddingLeft: 8, lineHeight: 1.6 }}>
-              <span style={dot(oi.chg >= 0 ? M.green : M.red)} /><span style={{ color: G.text, fontWeight: 500 }}>{oi.inst}</span><span style={{ color: oi.chg >= 0 ? M.green : M.red, fontWeight: 500 }}>{oi.chg >= 0 ? "+" : ""}{(oi.chg * 100).toFixed(1)}%</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── MAIN PAGE ───────────────────────────────────────────────────────────
 
 export default function COTOverview() {
@@ -383,7 +335,12 @@ export default function COTOverview() {
           .cot-page { padding: 16px 12px !important; }
           .cot-nav { padding: 0 16px !important; }
           .cot-nav-links { display: none !important; }
-          .cot-breadcrumb { display: none !important; }
+          .nav-analytics { display: none !important; }
+          .nav-search-input { width: 0 !important; padding: 0 !important; transition: width 0.2s; }
+          .nav-search-input::placeholder { opacity: 0; }
+          .nav-search-box:focus-within .nav-search-input { width: 160px !important; }
+          .nav-search-box:focus-within .nav-search-input::placeholder { opacity: 1; }
+          .cot-nav:has(.nav-search-box:focus-within) .cot-breadcrumb { display: none !important; }
           .cot-header-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
           .cot-title-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
           .cot-title h1 { font-size: 20px !important; }
@@ -404,7 +361,6 @@ export default function COTOverview() {
           .cot-df { overflow-x: auto !important; }
           .cot-df table { min-width: 700px !important; }
           .cot-footer { flex-direction: column !important; gap: 6px !important; padding: 16px !important; text-align: center !important; }
-          .cot-summary-bar { font-size: 9px !important; }
           .cot-ai-summary { font-size: 11px !important; }
         }
       `}</style>
@@ -440,7 +396,6 @@ export default function COTOverview() {
               </div>
               </div>
             </div>
-            {!loading && !error && <SummaryBar data={data} tf={tf} />}
           </div>
 
           {/* Context box */}
@@ -452,40 +407,7 @@ export default function COTOverview() {
           </div>
         </div>
 
-        {/* AI Summary */}
-        {summary && (
-          <div style={{
-            background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4,
-            padding: "14px 20px", marginBottom: 14,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontFamily: M.mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2 }}>
-                AI Summary -- {lookback}w lookback
-              </span>
-              <span style={{
-                fontFamily: M.mono, fontSize: 7, padding: "1px 6px", borderRadius: 2,
-                background: "rgba(167,139,250,0.08)", color: M.purple,
-                border: "1px solid rgba(167,139,250,0.2)",
-              }}>claude sonnet</span>
-            </div>
-            <div className="cot-ai-summary" style={{ fontFamily: M.sans, fontSize: 12, color: G.text2, lineHeight: 1.8, fontWeight: 300 }}>
-              <ReactMarkdown components={{
-                strong: ({children}) => <span style={{ color: G.text, fontWeight: 500 }}>{children}</span>,
-                p: ({children}) => <p style={{ marginBottom: 8 }}>{children}</p>,
-                ul: ({children}) => <ul style={{ paddingLeft: 16, marginBottom: 8 }}>{children}</ul>,
-                li: ({children}) => <li style={{ marginBottom: 4 }}>{children}</li>,
-                h1: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
-                h2: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
-                h3: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 10, marginBottom: 4 }}>{children}</div>,
-              }}>{summary}</ReactMarkdown>
-            </div>
-            <div style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.border}` }}>
-              Generated by AI. May contain errors or misinterpretations. This is not investment advice. Positioning data reflects regulated futures only and may not represent total market exposure. Always verify with primary sources.
-            </div>
-          </div>
-        )}
-
-        {/* Legend + dealer toggle (below report) */}
+        {/* Legend + dealer toggle */}
         <div className="cot-legend" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 12px", borderBottom: `1px solid ${G.border}`, marginBottom: 0 }}>
           <div style={{ display: "flex", gap: 14, fontFamily: M.mono, fontSize: 9, color: G.text3, alignItems: "center", flexWrap: "wrap" }}>
             {showDealer && <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: M.blue }} /> dealer</span>}
@@ -526,6 +448,39 @@ export default function COTOverview() {
               </div>
             ))}
           </div>
+
+          {/* AI Summary */}
+          {summary && (
+            <div style={{
+              background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4,
+              padding: "14px 20px", marginTop: 20,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontFamily: M.mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2 }}>
+                  AI Summary -- {lookback}w lookback
+                </span>
+                <span style={{
+                  fontFamily: M.mono, fontSize: 7, padding: "1px 6px", borderRadius: 2,
+                  background: "rgba(167,139,250,0.08)", color: M.purple,
+                  border: "1px solid rgba(167,139,250,0.2)",
+                }}>claude sonnet</span>
+              </div>
+              <div className="cot-ai-summary" style={{ fontFamily: M.sans, fontSize: 12, color: G.text2, lineHeight: 1.8, fontWeight: 300 }}>
+                <ReactMarkdown components={{
+                  strong: ({children}) => <span style={{ color: G.text, fontWeight: 500 }}>{children}</span>,
+                  p: ({children}) => <p style={{ marginBottom: 8 }}>{children}</p>,
+                  ul: ({children}) => <ul style={{ paddingLeft: 16, marginBottom: 8 }}>{children}</ul>,
+                  li: ({children}) => <li style={{ marginBottom: 4 }}>{children}</li>,
+                  h1: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
+                  h2: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
+                  h3: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 10, marginBottom: 4 }}>{children}</div>,
+                }}>{summary}</ReactMarkdown>
+              </div>
+              <div style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.border}` }}>
+                Generated by AI. May contain errors or misinterpretations. This is not investment advice. Positioning data reflects regulated futures only and may not represent total market exposure. Always verify with primary sources.
+              </div>
+            </div>
+          )}
 
           {/* Dataframe excerpt */}
           <div className="cot-df" style={{ marginTop: 20 }}>
