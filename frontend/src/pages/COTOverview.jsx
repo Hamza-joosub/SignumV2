@@ -158,8 +158,8 @@ function Nav({ navigate }) {
         }}>
           <label htmlFor="nav-search-input" style={{ display: "flex", alignItems: "center", cursor: "pointer", color: G.textInv3 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </label>
           <input id="nav-search-input" className="nav-search-input" placeholder="Search ticker..." value={q}
@@ -182,9 +182,9 @@ function Nav({ navigate }) {
 
 function pctlToX(p) { return 3 + (Math.max(0, Math.min(100, p)) / 100) * 94; }
 function pctlColor(p) { if (p >= 80) return M.green; if (p <= 20) return M.red; if (p >= 60) return "rgba(34,197,94,0.5)"; if (p <= 40) return "rgba(239,68,68,0.5)"; return G.text3; }
-function fmtNet(n) { if (n == null) return "--"; const a = Math.abs(n); if (a >= 1e6) return `${n >= 0 ? "+" : ""}${(n/1e6).toFixed(2)}M`; if (a >= 1e3) return `${n >= 0 ? "+" : ""}${(n/1e3).toFixed(0)}k`; return `${n >= 0 ? "+" : ""}${n}`; }
-function fmtPct(v) { if (v == null) return "--"; return `${v >= 0 ? "+" : ""}${(v*100).toFixed(1)}%`; }
-function fmtPctOI(v) { if (v == null) return "--"; return `${v >= 0 ? "+" : ""}${(v*100).toFixed(2)}pp`; }
+function fmtNet(n) { if (n == null) return "--"; const a = Math.abs(n); if (a >= 1e6) return `${n >= 0 ? "+" : ""}${(n / 1e6).toFixed(2)}M`; if (a >= 1e3) return `${n >= 0 ? "+" : ""}${(n / 1e3).toFixed(0)}k`; return `${n >= 0 ? "+" : ""}${n}`; }
+function fmtPct(v) { if (v == null) return "--"; return `${v >= 0 ? "+" : ""}${(v * 100).toFixed(1)}%`; }
+function fmtPctOI(v) { if (v == null) return "--"; return `${v >= 0 ? "+" : ""}${(v * 100).toFixed(2)}pp`; }
 
 // ── POSITIONING STRIP ───────────────────────────────────────────────────
 
@@ -201,9 +201,11 @@ function PositioningStrip({ inst, tf, onClick, showDealer }) {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span className="cot-strip-label" style={{ fontFamily: M.mono, fontSize: 12, fontWeight: 500, color: G.text }}>{inst.instrument}</span>
-          {(() => { const cov = COVERAGE[inst.instrument] || 'low'; const s = COV_STYLE[cov]; return (
-            <span className="cot-strip-coverage" style={{ fontFamily: M.mono, fontSize: 7, padding: "1px 5px", borderRadius: 2, background: s.bg, color: s.color, border: `1px solid ${s.border}`, letterSpacing: 0.3 }}>{cov}</span>
-          ); })()}
+          {(() => {
+            const cov = COVERAGE[inst.instrument] || 'low'; const s = COV_STYLE[cov]; return (
+              <span className="cot-strip-coverage" style={{ fontFamily: M.mono, fontSize: 7, padding: "1px 5px", borderRadius: 2, background: s.bg, color: s.color, border: `1px solid ${s.border}`, letterSpacing: 0.3 }}>{cov}</span>
+            );
+          })()}
         </div>
         <div className="cot-strip-ticker" style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, marginTop: 2 }}>{inst.ticker}</div>
       </div>
@@ -410,8 +412,8 @@ export default function COTOverview() {
             border: `1px solid ${showDealer ? "rgba(96,165,250,0.3)" : G.border}`,
             cursor: "pointer", transition: "all 0.15s",
           }}
-            onMouseEnter={e => { if (!showDealer) { e.currentTarget.style.borderColor = G.border2; e.currentTarget.style.color = G.text2; }}}
-            onMouseLeave={e => { if (!showDealer) { e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text3; }}}
+            onMouseEnter={e => { if (!showDealer) { e.currentTarget.style.borderColor = G.border2; e.currentTarget.style.color = G.text2; } }}
+            onMouseLeave={e => { if (!showDealer) { e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text3; } }}
           >{showDealer ? "Dealer: ON" : "Dealer: OFF"}</button>
         </div>
 
@@ -430,7 +432,7 @@ export default function COTOverview() {
           {/* Axis labels */}
           <div className="cot-axis" style={{ display: "grid", gridTemplateColumns: "130px 1fr 160px", padding: "8px 20px 4px", fontFamily: M.mono, fontSize: 7, color: G.text3 }}>
             <div></div>
-            <div style={{ display: "flex", justifyContent: "space-between", margin: "0 16px" }}><span>0th pctl</span><span>50th</span><span>100th pctl</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", margin: "0 16px" }}><span>0th pctl (Short)</span><span>50th</span><span>100th pctl (Long)</span></div>
             <div></div>
           </div>
 
@@ -462,13 +464,13 @@ export default function COTOverview() {
               </div>
               <div className="cot-ai-summary" style={{ fontFamily: M.sans, fontSize: 12, color: G.text2, lineHeight: 1.8, fontWeight: 300 }}>
                 <ReactMarkdown components={{
-                  strong: ({children}) => <span style={{ color: G.text, fontWeight: 500 }}>{children}</span>,
-                  p: ({children}) => <p style={{ marginBottom: 8 }}>{children}</p>,
-                  ul: ({children}) => <ul style={{ paddingLeft: 16, marginBottom: 8 }}>{children}</ul>,
-                  li: ({children}) => <li style={{ marginBottom: 4 }}>{children}</li>,
-                  h1: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
-                  h2: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
-                  h3: ({children}) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 10, marginBottom: 4 }}>{children}</div>,
+                  strong: ({ children }) => <span style={{ color: G.text, fontWeight: 500 }}>{children}</span>,
+                  p: ({ children }) => <p style={{ marginBottom: 8 }}>{children}</p>,
+                  ul: ({ children }) => <ul style={{ paddingLeft: 16, marginBottom: 8 }}>{children}</ul>,
+                  li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
+                  h1: ({ children }) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
+                  h2: ({ children }) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 12, marginBottom: 6 }}>{children}</div>,
+                  h3: ({ children }) => <div style={{ fontFamily: M.mono, fontSize: 10, color: G.text, fontWeight: 600, marginTop: 10, marginBottom: 4 }}>{children}</div>,
                 }}>{summary}</ReactMarkdown>
               </div>
               <div style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${G.border}` }}>
