@@ -18,27 +18,7 @@ const CATEGORY_META = {
   bonds: { label: "Bonds", desc: "Fixed income ETFs", detail: "8 instruments · Global fixed income" },
 };
 
-const CATEGORY_MODELS = {
-  stocks: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Hist. P/E", tag: "Fundamental" }],
-  crypto: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Monte Carlo", tag: "Quant" }],
-  commodities: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }],
-  bonds: [{ name: "Multi-Factor", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Monte Carlo", tag: "Quant" }],
-  fx: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }],
-};
-
-const MODEL_DESCS = {
-  "Multi-Factor": "Ranks assets across momentum, value, quality and volatility factors.",
-  "Momentum/MR": "Identifies trend continuation and mean-reversion entry signals.",
-  "GARCH": "Models conditional volatility clustering for risk estimation.",
-  "Monte Carlo": "Simulates thousands of price paths for probabilistic forecasting.",
-  "Hist. P/E": "Compares current valuations against historical earnings multiples.",
-};
-
-const RELEASES = [
-  { time: "08:30", name: "CPI (MoM)", tag: "Central Bank" },
-  { time: "10:30", name: "Non Farm Payrolls", tag: "Macro" },
-  { time: "14:00", name: "Fed Minutes", tag: "Central Bank" },
-];
+const CATEGORY_TO_ASSET = { stocks: "stock", fx: "fx", crypto: "crypto", commodities: "commodity", bonds: "bond" };
 
 // tickers to fetch news for per category
 const CATEGORY_TICKERS = {
@@ -296,7 +276,23 @@ export default function Category() {
   const [error, setError] = useState(null);
 
   const meta = CATEGORY_META[category] || { label: category, desc: "", detail: "" };
-  const models = CATEGORY_MODELS[category] || [];
+  const [allModels, setAllModels] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/models/registry`)
+      .then(r => r.json())
+      .then(data => {
+        setAllModels(data.map(m => ({
+          ...m,
+          tag: m.tags && m.tags[0] ? m.tags[0].charAt(0).toUpperCase() + m.tags[0].slice(1) : null,
+          desc: m.description,
+        })));
+      })
+      .catch(() => setAllModels([]));
+  }, []);
+
+  const pageAssetType = CATEGORY_TO_ASSET[category];
+  const models = pageAssetType ? allModels.filter(m => (m.assetTypes || []).includes(pageAssetType)) : [];
 
   useEffect(() => {
     setLoading(true);
@@ -441,40 +437,6 @@ export default function Category() {
         )}
       </div>
 
-      {/* ── DARK BAND — calendar ── */}
-      <div style={{
-        background: G.bgDark, margin: "32px 0 0",
-        padding: "28px 40px",
-        borderTop: `1px solid ${G.borderDk}`, borderBottom: `1px solid ${G.borderDk}`,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 14 }}>
-              Today's Economic Calendar
-            </p>
-            <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
-              {RELEASES.map((r, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 10, color: G.textInv3, fontFamily: "'DM Mono',monospace", minWidth: 38 }}>{r.time}</span>
-                  <span style={{ fontSize: 13, color: G.textInv2, fontFamily: "'DM Sans',sans-serif" }}>{r.name}</span>
-                  <span style={{
-                    fontSize: 8, fontFamily: "'DM Mono',monospace", letterSpacing: "0.3px", textTransform: "uppercase",
-                    padding: "2px 6px", borderRadius: 3,
-                    background: r.tag === "Central Bank" ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.05)",
-                    color: r.tag === "Central Bank" ? "#fbbf24" : G.textInv3,
-                    border: r.tag === "Central Bank" ? "1px solid rgba(245,158,11,0.25)" : `1px solid ${G.borderDk}`,
-                  }}>{r.tag}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: G.green, boxShadow: `0 0 6px ${G.green}` }} />
-            <span style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1px", textTransform: "uppercase" }}>Live</span>
-          </div>
-        </div>
-      </div>
-
       {/* ── RELEVANT MODELS ── */}
       <div style={{ padding: "48px 40px 0" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
@@ -491,12 +453,16 @@ export default function Category() {
             onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text2; }}
           >View all models </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${models.length},1fr)`, gap: 8 }}>
-          {models.map((m, i) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
+          {allModels.length > 0 && models.length === 0 ? (
+            <div style={{ gridColumn: "1 / -1", padding: "40px 0", color: G.text3, fontSize: 12, fontFamily: "'DM Mono',monospace", textAlign: "center" }}>
+              No models yet for this asset class.
+            </div>
+          ) : models.map(m => {
             const isQuant = m.tag === "Quant";
             return (
-              <button key={i}
-                onClick={() => navigate(`/models/${m.name.toLowerCase().replace(/[^a-z]/g, "-")}`)}
+              <button key={m.id}
+                onClick={() => navigate(`/models/${m.id}`)}
                 style={{
                   background: G.bg, border: `1px solid ${G.border}`,
                   borderRadius: 6, padding: "28px 24px",
@@ -522,20 +488,22 @@ export default function Category() {
                   e.currentTarget.querySelectorAll(".card-arrow").forEach(el => el.style.color = G.text3);
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{
-                    fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
-                    padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
-                    background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
-                    color: isQuant ? G.text3 : "#92400e",
-                    border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
-                  }}>{m.tag}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: m.tag ? "space-between" : "flex-end" }}>
+                  {m.tag && (
+                    <span style={{
+                      fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
+                      padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
+                      background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
+                      color: isQuant ? G.text3 : "#92400e",
+                      border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
+                    }}>{m.tag}</span>
+                  )}
                   <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}></span>
                 </div>
                 <div>
                   <p className="card-title" style={{ fontSize: 15, fontWeight: 600, color: G.text, fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>{m.name}</p>
                   <p className="card-desc" style={{ fontSize: 12, color: G.text3, fontFamily: "'DM Sans',sans-serif", fontWeight: 300, lineHeight: 1.7 }}>
-                    {MODEL_DESCS[m.name] || ""}
+                    {m.desc}
                   </p>
                 </div>
               </button>

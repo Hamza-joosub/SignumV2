@@ -1,21 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { G } from "../styles/tokens";
 
+const API = import.meta.env.VITE_API_URL;
 const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
-
-const MODELS = [
-  {
-    id: "cot",
-    name: "COT Positioning",
-    tag: "Macro",
-    badge: "NEW",
-    description: "Analyses CFTC Commitments of Traders data across dealer, asset manager, and hedge fund positioning. Generates insight signals from crowding, ratio extremes, divergences, and weekly shifts — each backed by a proof chart.",
-    assetTypes: ["stock", "crypto", "fx", "bond"],
-    metrics: ["Net Positioning", "Crowding", "Long/Short Ratio", "Divergence Signals"],
-    complexity: 3,
-  },
-];
 
 const ALL_TAGS = ["All", "Quant", "Fundamental", "Macro"];
 const ALL_ASSETS = ["All", "stock", "crypto", "commodity", "fx", "bond"];
@@ -158,7 +146,7 @@ function ModelCard({ model, navigate }) {
             }}>{model.badge}</span>
           )}
         </div>
-        <TagPill tag={model.tag} />
+        {model.tag && <TagPill tag={model.tag} />}
       </div>
 
       {/* ── DESCRIPTION ── */}
@@ -173,18 +161,20 @@ function ModelCard({ model, navigate }) {
       </p>
 
       {/* ── METRICS ── */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-        {model.metrics.map((m, i) => (
-          <span key={i} style={{
-            fontSize: 10, fontFamily: "'DM Mono',monospace",
-            padding: "3px 10px", borderRadius: 3,
-            background: hov ? "rgba(255,255,255,0.07)" : G.s1,
-            color: hov ? G.textInv3 : G.text3,
-            border: hov ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${G.border}`,
-            transition: "all .2s",
-          }}>{m}</span>
-        ))}
-      </div>
+      {model.metrics && model.metrics.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+          {model.metrics.map((m, i) => (
+            <span key={i} style={{
+              fontSize: 10, fontFamily: "'DM Mono',monospace",
+              padding: "3px 10px", borderRadius: 3,
+              background: hov ? "rgba(255,255,255,0.07)" : G.s1,
+              color: hov ? G.textInv3 : G.text3,
+              border: hov ? "1px solid rgba(255,255,255,0.1)" : `1px solid ${G.border}`,
+              transition: "all .2s",
+            }}>{m}</span>
+          ))}
+        </div>
+      )}
 
       {/* ── BOTTOM ROW ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -194,7 +184,7 @@ function ModelCard({ model, navigate }) {
             fontSize: 9, fontFamily: "'DM Mono',monospace", letterSpacing: "1px", textTransform: "uppercase",
             color: hov ? G.textInv3 : G.text3, marginRight: 4, transition: "color .2s",
           }}>Works with</span>
-          {model.assetTypes.map((a, i) => (
+          {(model.assetTypes || []).map((a, i) => (
             <span key={i} style={{
               fontSize: 9, fontFamily: "'DM Mono',monospace",
               padding: "2px 7px", borderRadius: 3, textTransform: "capitalize",
@@ -208,7 +198,7 @@ function ModelCard({ model, navigate }) {
 
         {/* complexity + run */}
         <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
-          <ComplexityBar n={model.complexity} dark={hov} />
+          {typeof model.complexity === "number" && <ComplexityBar n={model.complexity} dark={hov} />}
           <button style={{
             fontSize: 11, fontFamily: "'DM Mono',monospace", fontWeight: 500,
             padding: "7px 20px", borderRadius: 4, cursor: "pointer",
@@ -229,10 +219,27 @@ export default function Models() {
   const navigate = useNavigate();
   const [tagFilter, setTagFilter] = useState("All");
   const [assetFilter, setAssetFilter] = useState("All");
+  const [models, setModels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filtered = MODELS.filter(m => {
+  useEffect(() => {
+    fetch(`${API}/api/models/registry`)
+      .then(r => r.json())
+      .then(data => {
+        const transformed = data.map(m => ({
+          ...m,
+          tag: m.tags && m.tags[0] ? m.tags[0].charAt(0).toUpperCase() + m.tags[0].slice(1) : null,
+        }));
+        setModels(transformed);
+        setLoading(false);
+      })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, []);
+
+  const filtered = models.filter(m => {
     const tagOk = tagFilter === "All" || m.tag === tagFilter;
-    const assetOk = assetFilter === "All" || m.assetTypes.includes(assetFilter);
+    const assetOk = assetFilter === "All" || (m.assetTypes || []).includes(assetFilter);
     return tagOk && assetOk;
   });
 
@@ -347,7 +354,15 @@ export default function Models() {
 
         {/* ── CARDS ── */}
         <div style={{ padding: "20px 0 72px" }}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div style={{ padding: 60, textAlign: "center", color: G.text3, fontSize: 12, fontFamily: "'DM Mono',monospace" }}>
+              Loading models...
+            </div>
+          ) : error ? (
+            <div style={{ padding: 60, textAlign: "center", color: "#ef4444", fontSize: 12, fontFamily: "'DM Mono',monospace" }}>
+              Failed to load: {error}
+            </div>
+          ) : filtered.length === 0 ? (
             <div style={{ padding: 60, textAlign: "center", color: G.text3, fontSize: 12, fontFamily: "'DM Mono',monospace" }}>
               No models match the selected filters.
             </div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { G } from "../styles/tokens";
 import chartImg from "../assets/newplot3.png";
 
+const API = import.meta.env.VITE_API_URL;
 const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
 
 const TICKERS = [
@@ -16,21 +17,6 @@ const TICKERS = [
   { label: "TSLA", value: "-1.92%", up: false },
   { label: "AAPL", value: "+0.74%", up: true },
   { label: "Crude Oil", value: "-0.55%", up: false },
-];
-
-const FEATURES = [
-  {
-    num: "01", title: "Market Heatmaps",
-    body: "See every asset class at a glance. Stocks, FX, crypto, commodities, bonds — color-coded by performance across any timeframe.",
-  },
-  {
-    num: "02", title: "Quantitative Models",
-    body: "Multi-factor scoring, GARCH volatility, Monte Carlo simulation, momentum regimes. One click. No code. No Excel.",
-  },
-  {
-    num: "03", title: "Fundamental Analysis",
-    body: "Historical P/E analysis, DCF valuation, and earnings multiples — the same frameworks used on equity research desks.",
-  },
 ];
 
 
@@ -83,6 +69,14 @@ function Nav({ navigate }) {
 // ── LANDING ───────────────────────────────────────────────────────────────
 export default function Landing() {
   const navigate = useNavigate();
+  const [models, setModels] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/models/registry`)
+      .then(r => r.json())
+      .then(data => setModels(data.slice(0, 3)))
+      .catch(() => setModels([]));
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'DM Sans',sans-serif", color: G.text, overflowX: "hidden" }}>
@@ -291,29 +285,40 @@ export default function Landing() {
           </h2>
         </div>
 
-        <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
-          {FEATURES.map((f, i) => (
-            <div key={i} className="feature-card" style={{
-              padding: "36px 32px",
-              background: i === 1 ? G.bgDark : G.s1,
-              borderRadius: i === 0 ? "8px 0 0 8px" : i === 2 ? "0 8px 8px 0" : 0,
-            }}>
-              <span style={{
-                fontSize: 10, fontFamily: "'DM Mono',monospace", letterSpacing: "1px",
-                color: i === 1 ? G.textInv3 : G.text3,
-              }}>{f.num}</span>
-              <h3 style={{
-                fontFamily: "'Playfair Display',serif",
-                fontSize: 21, fontWeight: 700, letterSpacing: "-0.3px",
-                color: i === 1 ? G.textInv : G.text,
-                margin: "12px 0 12px",
-              }}>{f.title}</h3>
-              <p style={{
-                fontSize: 14, lineHeight: 1.75, fontWeight: 300,
-                color: i === 1 ? G.textInv2 : G.text2,
-              }}>{f.body}</p>
-            </div>
-          ))}
+        <div className="features-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(models.length, 1)}, 1fr)`, gap: 2 }}>
+          {models.map((m, i) => {
+            const last = models.length - 1;
+            const borderRadius = models.length === 1 ? 8
+              : i === 0 ? "8px 0 0 8px"
+              : i === last ? "0 8px 8px 0"
+              : 0;
+            return (
+              <div key={m.id} className="feature-card"
+                onClick={() => navigate(`/models/${m.id}`)}
+                style={{
+                  padding: "36px 32px",
+                  background: i === 1 ? G.bgDark : G.s1,
+                  borderRadius,
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{
+                  fontSize: 10, fontFamily: "'DM Mono',monospace", letterSpacing: "1px",
+                  color: i === 1 ? G.textInv3 : G.text3,
+                }}>{String(i + 1).padStart(2, "0")}</span>
+                <h3 style={{
+                  fontFamily: "'Playfair Display',serif",
+                  fontSize: 21, fontWeight: 700, letterSpacing: "-0.3px",
+                  color: i === 1 ? G.textInv : G.text,
+                  margin: "12px 0 12px",
+                }}>{m.name}</h3>
+                <p style={{
+                  fontSize: 14, lineHeight: 1.75, fontWeight: 300,
+                  color: i === 1 ? G.textInv2 : G.text2,
+                }}>{m.description}</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 

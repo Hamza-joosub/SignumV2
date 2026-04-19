@@ -1,15 +1,15 @@
 # Why
-**Signum Analytics** exists because institutional finance has a dirty secret: the models that move markets aren't actually that complex. A discounted cash flow is arithmetic. A linear regression is a high school formula. GARCH volatility, Monte Carlo simulation, COT analysis — these are all just Python libraries and a bit of logic. The mystique is manufactured, and for too long it's kept retail traders locked out of their own decisions.
+**Kurtopy** exists because institutional finance has a dirty secret: the models that move markets aren't actually that complex. A discounted cash flow is arithmetic. A linear regression is a high school formula. GARCH volatility, Monte Carlo simulation, COT analysis — these are all just Python libraries and a bit of logic. The mystique is manufactured, and for too long it's kept retail traders locked out of their own decisions.
 
 The retail trader today is smart. They read the news, they follow the data, they have genuine conviction on markets. What they don't have is five years to master Excel, a Bloomberg terminal, or a finance degree that mostly teaches you to replicate work that Python does in four lines. So they're left making decisions on gut feel, Reddit threads, and charts that tell them nothing about underlying value or structural risk.
 
-Signum closes that gap.
+Kurtopy closes that gap.
 
 It's a web-based analytical platform that puts a full suite of quantitative and fundamental models — factor scoring, momentum and mean-reversion regimes, volatility forecasting, macro indicators, alternative data signals, valuation frameworks, backtesting tools — directly in the hands of anyone willing to think seriously about a trade. No code. No spreadsheets. No prerequisites. You pick an instrument, you pick a model, and the platform runs the analysis, surfaces the output, and explains what it means.
 
 The interface is intentionally unintimidating but never dumbed down. The complexity is preserved — the Hurst exponent is still a Hurst exponent, a backtest still shows you drawdowns and Sharpe — because the goal isn't to hide the finance. It's to remove the **friction** between a curious trader and a legitimate analytical framework.
 
-The niche is the gap between a retail brokerage app and a professional terminal. One tells you nothing. The other costs $25,000 a year and assumes you already know everything. Signum sits exactly between them — sophisticated enough to be trusted, accessible enough to be actually used.
+The niche is the gap between a retail brokerage app and a professional terminal. One tells you nothing. The other costs $25,000 a year and assumes you already know everything. Kurtopy sits exactly between them — sophisticated enough to be trusted, accessible enough to be actually used.
 
 # Technicals
 ## Backend

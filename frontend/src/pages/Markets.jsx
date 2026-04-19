@@ -19,19 +19,6 @@ const CATEGORIES = [
   { key: "bonds", label: "Bonds", desc: "Fixed income ETFs" },
 ];
 
-const ALL_MODELS = [
-  { name: "Multi-Factor", tag: "Quant", desc: "Ranks assets across momentum, value, quality and volatility factors." },
-  { name: "Momentum/MR", tag: "Quant", desc: "Identifies trend continuation and mean-reversion entry signals." },
-  { name: "GARCH", tag: "Quant", desc: "Models conditional volatility clustering for risk estimation." },
-  { name: "Monte Carlo", tag: "Quant", desc: "Simulates thousands of price paths for probabilistic forecasting." },
-  { name: "Hist. P/E", tag: "Fundamental", desc: "Compares current valuations against historical earnings multiples." },
-];
-
-const RELEASES = [
-  { time: "08:30", name: "CPI (MoM)", tag: "Central Bank" },
-  { time: "10:30", name: "Non Farm Payrolls", tag: "Macro" },
-  { time: "14:00", name: "Fed Minutes", tag: "Central Bank" },
-];
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 
@@ -237,8 +224,23 @@ export default function Markets() {
   // Stocks drill-down: level 1 = regions, 2 = sectors, 3 = individual stocks
   const [stocksDrill, setStocksDrill] = useState({ level: 1, parent: null, trail: [] });
 
+  const [allModels, setAllModels] = useState([]);
+
   // Reset drill-down when timeframe changes
   useEffect(() => { setStocksDrill({ level: 1, parent: null, trail: [] }); }, [tf]);
+
+  useEffect(() => {
+    fetch(`${API}/api/models/registry`)
+      .then(r => r.json())
+      .then(data => {
+        setAllModels(data.map(m => ({
+          ...m,
+          tag: m.tags && m.tags[0] ? m.tags[0].charAt(0).toUpperCase() + m.tags[0].slice(1) : null,
+          desc: m.description,
+        })));
+      })
+      .catch(() => setAllModels([]));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -307,6 +309,7 @@ export default function Markets() {
           .nav-search-box:focus-within .nav-search-input { width: 160px !important; }
           .nav-search-box:focus-within .nav-search-input::placeholder { opacity: 1; }
           nav:has(.nav-search-box:focus-within) .nav-buttons { display: none !important; }
+          .heatmap-row { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -376,7 +379,7 @@ export default function Markets() {
             {stocksDrill.level === 1 && (
               <>
                 {/* 2. FX (wider) + Crypto */}
-                <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
+                <div className="heatmap-row" style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
                   {["fx", "crypto"].map(key => {
                     const cat = CATEGORIES.find(c => c.key === key);
                     return (
@@ -389,7 +392,7 @@ export default function Markets() {
                 </div>
 
                 {/* 3. Commodities + Bonds */}
-                <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
+                <div className="heatmap-row" style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 10 }}>
                   {["commodities", "bonds"].map(key => {
                     const cat = CATEGORIES.find(c => c.key === key);
                     return (
@@ -405,40 +408,6 @@ export default function Markets() {
 
           </div>
         )}
-      </div>
-
-      {/* ── DARK BAND — Economic Calendar + live indicator ── */}
-      <div style={{
-        background: G.bgDark, margin: "32px 0 0",
-        padding: "28px 40px",
-        borderTop: `1px solid ${G.borderDk}`, borderBottom: `1px solid ${G.borderDk}`,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 14 }}>
-              Today's Economic Calendar
-            </p>
-            <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
-              {RELEASES.map((r, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 10, color: G.textInv3, fontFamily: "'DM Mono',monospace", minWidth: 38 }}>{r.time}</span>
-                  <span style={{ fontSize: 13, color: G.textInv2, fontFamily: "'DM Sans',sans-serif" }}>{r.name}</span>
-                  <span style={{
-                    fontSize: 8, fontFamily: "'DM Mono',monospace", letterSpacing: "0.3px", textTransform: "uppercase",
-                    padding: "2px 6px", borderRadius: 3,
-                    background: r.tag === "Central Bank" ? "rgba(245,158,11,0.12)" : "rgba(255,255,255,0.05)",
-                    color: r.tag === "Central Bank" ? "#fbbf24" : G.textInv3,
-                    border: r.tag === "Central Bank" ? "1px solid rgba(245,158,11,0.25)" : `1px solid ${G.borderDk}`,
-                  }}>{r.tag}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: G.green, boxShadow: `0 0 6px ${G.green}` }} />
-            <span style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1px", textTransform: "uppercase" }}>Live</span>
-          </div>
-        </div>
       </div>
 
       {/* ── MODELS ── */}
@@ -457,12 +426,12 @@ export default function Markets() {
             onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text2; }}
           >View all </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
-          {ALL_MODELS.map((m, i) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
+          {allModels.map(m => {
             const isQuant = m.tag === "Quant";
             return (
-              <button key={i}
-                onClick={() => navigate(`/models/${m.name.toLowerCase().replace(/[^a-z]/g, "-")}`)}
+              <button key={m.id}
+                onClick={() => navigate(`/models/${m.id}`)}
                 style={{
                   background: G.bg, border: `1px solid ${G.border}`,
                   borderRadius: 6, padding: "28px 24px",
@@ -488,14 +457,16 @@ export default function Markets() {
                   e.currentTarget.querySelectorAll(".card-arrow").forEach(el => el.style.color = G.text3);
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{
-                    fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
-                    padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
-                    background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
-                    color: isQuant ? G.text3 : "#92400e",
-                    border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
-                  }}>{m.tag}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: m.tag ? "space-between" : "flex-end" }}>
+                  {m.tag && (
+                    <span style={{
+                      fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
+                      padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
+                      background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
+                      color: isQuant ? G.text3 : "#92400e",
+                      border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
+                    }}>{m.tag}</span>
+                  )}
                   <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}></span>
                 </div>
                 <div>

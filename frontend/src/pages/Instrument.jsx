@@ -27,23 +27,6 @@ const PERIOD_BARS = {
   "5Y": { daily: 1260 },
 };
 
-const CATEGORY_MODELS = {
-  stock: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Hist. P/E", tag: "Fundamental" }],
-  crypto: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Monte Carlo", tag: "Quant" }],
-  commodity: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }],
-  bond: [{ name: "Multi-Factor", tag: "Quant" }, { name: "GARCH", tag: "Quant" }, { name: "Monte Carlo", tag: "Quant" }],
-  fx: [{ name: "Multi-Factor", tag: "Quant" }, { name: "Momentum/MR", tag: "Quant" }, { name: "GARCH", tag: "Quant" }],
-  etf: [{ name: "Multi-Factor", tag: "Quant" }, { name: "GARCH", tag: "Quant" }],
-};
-
-const MODEL_DESCS = {
-  "Multi-Factor": "Ranks assets across momentum, value, quality and volatility factors.",
-  "Momentum/MR": "Identifies trend continuation and mean-reversion entry signals.",
-  "GARCH": "Models conditional volatility clustering for risk estimation.",
-  "Monte Carlo": "Simulates thousands of price paths for probabilistic forecasting.",
-  "Hist. P/E": "Compares current valuations against historical earnings multiples.",
-};
-
 // ── HELPERS ───────────────────────────────────────────────────────────────
 
 function fmtPrice(v, decimals = 2) {
@@ -233,7 +216,22 @@ export default function Instrument() {
   const numBars = PERIOD_BARS[period]?.[datasetKey] || allData[datasetKey]?.length;
   const candles = allData[datasetKey].slice(-numBars);
   const isUp = info ? info.changePct >= 0 : true;
-  const models = CATEGORY_MODELS[info?.assetType] || CATEGORY_MODELS["stock"];
+  const [allModels, setAllModels] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/models/registry`)
+      .then(r => r.json())
+      .then(data => {
+        setAllModels(data.map(m => ({
+          ...m,
+          tag: m.tags && m.tags[0] ? m.tags[0].charAt(0).toUpperCase() + m.tags[0].slice(1) : null,
+          desc: m.description,
+        })));
+      })
+      .catch(() => setAllModels([]));
+  }, []);
+
+  const models = info?.assetType ? allModels.filter(m => (m.assetTypes || []).includes(info.assetType)) : [];
 
   function getStats() {
     if (!info) return [];
@@ -448,12 +446,16 @@ export default function Instrument() {
             onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.borderColor = G.border; e.currentTarget.style.color = G.text2; }}
           >View all models </button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${models.length},1fr)`, gap: 8 }}>
-          {models.map((m, i) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
+          {info?.assetType && allModels.length > 0 && models.length === 0 ? (
+            <div style={{ gridColumn: "1 / -1", padding: "40px 0", color: G.text3, fontSize: 12, fontFamily: "'DM Mono',monospace", textAlign: "center" }}>
+              No models yet for this asset class.
+            </div>
+          ) : models.map(m => {
             const isQuant = m.tag === "Quant";
             return (
-              <button key={i}
-                onClick={() => navigate(`/models/${m.name.toLowerCase().replace(/[^a-z]/g, "-")}?ticker=${ticker}`)}
+              <button key={m.id}
+                onClick={() => navigate(`/models/${m.id}?ticker=${ticker}`)}
                 style={{
                   background: G.bg, border: `1px solid ${G.border}`,
                   borderRadius: 6, padding: "28px 24px",
@@ -479,20 +481,22 @@ export default function Instrument() {
                   e.currentTarget.querySelectorAll(".card-arrow").forEach(el => el.style.color = G.text3);
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{
-                    fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
-                    padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
-                    background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
-                    color: isQuant ? G.text3 : "#92400e",
-                    border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
-                  }}>{m.tag}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: m.tag ? "space-between" : "flex-end" }}>
+                  {m.tag && (
+                    <span style={{
+                      fontSize: 8, fontFamily: "'DM Mono',monospace", fontWeight: 500,
+                      padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", letterSpacing: "0.5px",
+                      background: isQuant ? G.s2 : "rgba(245,158,11,0.1)",
+                      color: isQuant ? G.text3 : "#92400e",
+                      border: isQuant ? `1px solid ${G.border}` : "1px solid rgba(245,158,11,0.3)",
+                    }}>{m.tag}</span>
+                  )}
                   <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}></span>
                 </div>
                 <div>
                   <p className="card-title" style={{ fontSize: 15, fontWeight: 600, color: G.text, fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>{m.name}</p>
                   <p className="card-desc" style={{ fontSize: 12, color: G.text3, fontFamily: "'DM Sans',sans-serif", fontWeight: 300, lineHeight: 1.7 }}>
-                    {MODEL_DESCS[m.name] || ""}
+                    {m.desc}
                   </p>
                 </div>
               </button>

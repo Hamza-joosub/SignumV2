@@ -11,7 +11,7 @@ This file is a router. Feature docs live in `.claude-context/docs/` (a symlink t
 These apply to every task. Violating any of them is a bug regardless of what the task asked for.
 
 - **No price predictions or forecasts.** Not in the UI, not in AI summaries, not in any future feature. No "this means the market will…" language. Legal + reputational.
-- **No buy/sell recommendations.** No trade signals, no setup scores, no ranking as investment advice. Signum describes; it doesn't prescribe.
+- **No buy/sell recommendations.** No trade signals, no setup scores, no ranking as investment advice. Kurtopy describes; it doesn't prescribe.
 - **No user accounts, auth, payments, or PII.** This is a read-only public dashboard.
 - **No emojis anywhere.** UI, AI summaries, button labels, comments. Non-negotiable. Typographic glyphs (`▲ ▼ • –`) are not emojis and are fine.
 - **yFinance has real rate limits.** Never add per-request yFinance calls on a hot path. The scheduler-writes-CSV / endpoints-read-CSV pattern is the rule. `/api/instrument/{ticker}`, `/api/chart/{ticker}/...`, `/api/news/{ticker}` are the only routes that legitimately call yFinance per request — these are leaf pages, not mass traffic.
