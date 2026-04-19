@@ -5,7 +5,7 @@ MODELS = [
         "name":         "COT Positioning",
         "description":  "CFTC Commitments of Traders — positioning, crowding, and divergence signals",
         "endpoint":     "/api/cot/instrument",
-        "assetTypes":   ["stock","crypto","bond","fx"],
+        "assetTypes":   ["stock","crypto","bond","fx", "etf"],
         "tags":         ["macro"],
         "defaultTicker":"SP500",
     },
