@@ -341,7 +341,6 @@ export default function COTOverview() {
           .nav-search-box:focus-within .nav-search-input { width: 160px !important; }
           .nav-search-box:focus-within .nav-search-input::placeholder { opacity: 1; }
           .cot-nav:has(.nav-search-box:focus-within) .cot-breadcrumb { display: none !important; }
-          .cot-header-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
           .cot-title-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
           .cot-title h1 { font-size: 20px !important; }
           .cot-toggles { flex-wrap: wrap !important; gap: 8px !important; }
@@ -369,41 +368,29 @@ export default function COTOverview() {
 
       <div className="cot-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 28px" }}>
 
-        {/* Header row: title + context box */}
-        <div className="cot-header-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, marginBottom: 16 }}>
-          <div>
-            <div className="cot-title-row" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-              <div className="cot-title">
-                <h1 style={{ fontFamily: M.serif, fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px" }}>Positioning Overview</h1>
-                <p style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, marginTop: 4 }}>CFTC TFF combined -- net/OI percentile rank vs {lookback}-week lookback -- sorted by futures coverage, then price change</p>
-              </div>
-              <div className="cot-toggles" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 1 }}>Lookback</span>
-                  <div style={{ display: "flex", gap: 1, background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: 2 }}>
-                    {[13, 26, 52].map(lb => (
-                      <button key={lb} onClick={() => setLookback(lb)} style={{ padding: "4px 10px", borderRadius: 3, fontSize: 9, fontFamily: M.mono, fontWeight: 500, background: lookback === lb ? G.text : "none", color: lookback === lb ? G.bg : G.text3, border: "none", cursor: "pointer", transition: "all .15s" }}>{lb}w</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 1 }}>Period</span>
-                <div style={{ display: "flex", gap: 1, background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: 2 }}>
-                  {["1W", "1M"].map(t => (
-                    <button key={t} onClick={() => setTf(t)} style={{ padding: "4px 12px", borderRadius: 3, fontSize: 10, fontFamily: M.mono, fontWeight: 500, background: tf === t ? G.text : "none", color: tf === t ? G.bg : G.text3, border: "none", cursor: "pointer", transition: "all .15s" }}>{t}</button>
-                  ))}
-                </div>
-              </div>
+        {/* Header: title + toggles */}
+        <div className="cot-title-row" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16, gap: 16, flexWrap: "wrap" }}>
+          <div className="cot-title">
+            <h1 style={{ fontFamily: M.serif, fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px" }}>Positioning Overview</h1>
+            <p style={{ fontFamily: M.mono, fontSize: 9, color: G.text3, marginTop: 4 }}>CFTC TFF combined -- net/OI percentile rank vs {lookback}-week lookback -- sorted by futures coverage, then price change</p>
+          </div>
+          <div className="cot-toggles" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 1 }}>Lookback</span>
+              <div style={{ display: "flex", gap: 1, background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: 2 }}>
+                {[13, 26, 52].map(lb => (
+                  <button key={lb} onClick={() => setLookback(lb)} style={{ padding: "4px 10px", borderRadius: 3, fontSize: 9, fontFamily: M.mono, fontWeight: 500, background: lookback === lb ? G.text : "none", color: lookback === lb ? G.bg : G.text3, border: "none", cursor: "pointer", transition: "all .15s" }}>{lb}w</button>
+                ))}
               </div>
             </div>
-          </div>
-
-          {/* Context box */}
-          <div style={{ background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: "16px 18px", fontFamily: M.mono, fontSize: 9, lineHeight: 1.8, color: G.text3 }}>
-            <div style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2, marginBottom: 8 }}>About this data</div>
-            <p style={{ marginBottom: 8 }}>Sourced from the CFTC Traders in Financial Futures (TFF) report. Covers regulated futures and options on futures. Published weekly -- positions reflect Tuesday close, released Friday 3:30 PM ET.</p>
-            <p style={{ marginBottom: 8 }}>Each dot shows where a group's net positioning (as % of total open interest) sits vs its own history over the selected lookback window. Further right = more net long than usual. Further left = more net short than usual.</p>
-            <p style={{ color: M.amber }}>Futures only. Does not capture OTC derivatives, spot holdings, ETF flows, or internal institutional allocations. Treat as a sentiment indicator, not a complete positioning census.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontFamily: M.mono, fontSize: 8, color: G.text3, textTransform: "uppercase", letterSpacing: 1 }}>Period</span>
+              <div style={{ display: "flex", gap: 1, background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: 2 }}>
+                {["1W", "1M"].map(t => (
+                  <button key={t} onClick={() => setTf(t)} style={{ padding: "4px 12px", borderRadius: 3, fontSize: 10, fontFamily: M.mono, fontWeight: 500, background: tf === t ? G.text : "none", color: tf === t ? G.bg : G.text3, border: "none", cursor: "pointer", transition: "all .15s" }}>{t}</button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -432,6 +419,14 @@ export default function COTOverview() {
         {loading && !error && <div style={{ padding: 60, color: G.text3, fontSize: 11, textAlign: "center", fontFamily: M.mono }}>Loading overview...</div>}
 
         {!loading && !error && (<>
+          {/* Context box — sits just above the diagram on both mobile and desktop */}
+          <div style={{ background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: "16px 18px", fontFamily: M.mono, fontSize: 9, lineHeight: 1.8, color: G.text3, marginTop: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2, marginBottom: 8 }}>About this data</div>
+            <p style={{ marginBottom: 8 }}>Sourced from the CFTC Traders in Financial Futures (TFF) report. Covers regulated futures and options on futures. Published weekly -- positions reflect Tuesday close, released Friday 3:30 PM ET.</p>
+            <p style={{ marginBottom: 8 }}>Each dot shows where a group's net positioning (as % of total open interest) sits vs its own history over the selected lookback window. Further right = more net long than usual. Further left = more net short than usual.</p>
+            <p style={{ color: M.amber }}>Futures only. Does not capture OTC derivatives, spot holdings, ETF flows, or internal institutional allocations. Treat as a sentiment indicator, not a complete positioning census.</p>
+          </div>
+
           {/* Axis labels */}
           <div className="cot-axis" style={{ display: "grid", gridTemplateColumns: "130px 1fr 160px", padding: "8px 20px 4px", fontFamily: M.mono, fontSize: 7, color: G.text3 }}>
             <div></div>

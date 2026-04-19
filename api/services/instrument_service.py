@@ -119,6 +119,35 @@ def get_instrument_info(ticker: str) -> dict:
             "navPrice":  info.get("navPrice"),
         }
 
+    elif asset_type == "etf":
+        price      = info.get("regularMarketPrice") or info.get("navPrice", 0)
+        prev_close = info.get("previousClose") or info.get("regularMarketPreviousClose", 0)
+        change     = price - prev_close if prev_close else 0
+        change_pct = (change / prev_close * 100) if prev_close else 0
+        return {**base,
+            "price":     round(price, 4),
+            "change":    round(change, 4),
+            "changePct": round(change_pct, 2),
+            "volume":    info.get("volume"),
+            "yield":     info.get("yield") or info.get("trailingAnnualDividendYield"),
+            "high52w":   info.get("fiftyTwoWeekHigh"),
+            "low52w":    info.get("fiftyTwoWeekLow"),
+            "navPrice":  info.get("navPrice"),
+        }
+
+    else:
+        price      = info.get("regularMarketPrice") or 0
+        prev_close = info.get("previousClose") or info.get("regularMarketPreviousClose", 0)
+        change     = price - prev_close if prev_close else 0
+        change_pct = (change / prev_close * 100) if prev_close else 0
+        return {**base,
+            "price":     round(price, 4),
+            "change":    round(change, 4),
+            "changePct": round(change_pct, 2),
+            "high52w":   info.get("fiftyTwoWeekHigh"),
+            "low52w":    info.get("fiftyTwoWeekLow"),
+        }
+
 
 def get_chart_data(ticker: str, interval: str = "daily") -> dict:
     if interval == "intraday":

@@ -217,6 +217,7 @@ export default function Instrument() {
   const candles = allData[datasetKey].slice(-numBars);
   const isUp = info ? info.changePct >= 0 : true;
   const [allModels, setAllModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(true);
 
   useEffect(() => {
     fetch(`${API}/api/models/registry`)
@@ -227,8 +228,9 @@ export default function Instrument() {
           tag: m.tags && m.tags[0] ? m.tags[0].charAt(0).toUpperCase() + m.tags[0].slice(1) : null,
           desc: m.description,
         })));
+        setLoadingModels(false);
       })
-      .catch(() => setAllModels([]));
+      .catch(() => { setAllModels([]); setLoadingModels(false); });
   }, []);
 
   const models = info?.assetType ? allModels.filter(m => (m.assetTypes || []).includes(info.assetType)) : [];
@@ -447,9 +449,9 @@ export default function Instrument() {
           >View all models </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
-          {info?.assetType && allModels.length > 0 && models.length === 0 ? (
+          {!loadingInfo && !loadingModels && info && models.length === 0 ? (
             <div style={{ gridColumn: "1 / -1", padding: "40px 0", color: G.text3, fontSize: 12, fontFamily: "'DM Mono',monospace", textAlign: "center" }}>
-              No models yet for this asset class.
+              No models yet.
             </div>
           ) : models.map(m => {
             const isQuant = m.tag === "Quant";
