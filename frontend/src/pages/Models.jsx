@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { G } from "../styles/tokens";
 
 const API = import.meta.env.VITE_API_URL;
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
+const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&display=swap');`;
 
 const ALL_TAGS = ["All", "Quant", "Fundamental", "Macro"];
 const ALL_ASSETS = ["All", "stock", "crypto", "commodity", "fx", "bond"];
@@ -65,7 +65,7 @@ function Nav({ navigate }) {
               onClick={() => { if (label === "Overview") navigate("/"); if (label === "Markets") navigate("/markets"); }}
               style={{
                 padding: "5px 16px", borderRadius: 4, fontSize: 12,
-                fontFamily: "'DM Sans',sans-serif",
+                fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif",
                 color: active ? G.textInv : G.textInv2,
                 background: active ? "rgba(255,255,255,0.1)" : "none",
                 border: "none", cursor: "pointer", transition: "all .15s",
@@ -153,7 +153,7 @@ function ModelCard({ model, navigate }) {
       <p style={{
         fontSize: 13, lineHeight: 1.8, fontWeight: 300,
         color: hov ? G.textInv2 : G.text2,
-        fontFamily: "'DM Sans',sans-serif",
+        fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif",
         marginBottom: 20, maxWidth: 720,
         transition: "color .2s",
       }}>
@@ -244,7 +244,7 @@ export default function Models() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'DM Sans',sans-serif", color: G.text }}>
+    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: G.text }}>
       <style>{`
         ${FONT}
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }

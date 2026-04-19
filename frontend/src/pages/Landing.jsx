@@ -4,7 +4,7 @@ import { G } from "../styles/tokens";
 import chartImg from "../assets/newplot3.png";
 
 const API = import.meta.env.VITE_API_URL;
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
+const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=DM+Mono:wght@400;500&display=swap');`;
 
 const TICKERS = [
   { label: "S&P 500", value: "+1.24%", up: true },
@@ -54,7 +54,7 @@ function Nav({ navigate }) {
           <button key={label} onClick={() => navigate(path)}
             style={{
               background: "none", border: "none", cursor: "pointer",
-              fontSize: 13, fontFamily: "'DM Sans',sans-serif", fontWeight: 500,
+              fontSize: 13, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", fontWeight: 500,
               color: G.text2, transition: "color .15s", padding: 0,
             }}
             onMouseEnter={e => e.currentTarget.style.color = G.text}
@@ -79,7 +79,7 @@ export default function Landing() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'DM Sans',sans-serif", color: G.text, overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: G.text, overflowX: "hidden" }}>
       <style>{`
         ${FONT}
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -230,7 +230,7 @@ export default function Landing() {
             style={{
               background: G.bgDark, color: G.textInv,
               border: "none", cursor: "pointer",
-              fontSize: 14, fontFamily: "'DM Sans',sans-serif", fontWeight: 600,
+              fontSize: 14, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", fontWeight: 600,
               padding: "15px 36px", borderRadius: 4, transition: "all .2s",
               letterSpacing: "0.2px",
             }}
@@ -244,7 +244,7 @@ export default function Landing() {
             style={{
               background: "none", color: G.text2,
               border: `1px solid ${G.border}`, cursor: "pointer",
-              fontSize: 14, fontFamily: "'DM Sans',sans-serif", fontWeight: 400,
+              fontSize: 14, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", fontWeight: 400,
               padding: "15px 28px", borderRadius: 4, transition: "all .2s",
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = G.text; e.currentTarget.style.color = G.text; }}
@@ -349,7 +349,7 @@ export default function Landing() {
           style={{
             background: G.textInv, color: G.bgDark,
             border: "none", cursor: "pointer",
-            fontSize: 14, fontFamily: "'DM Sans',sans-serif", fontWeight: 600,
+            fontSize: 14, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", fontWeight: 600,
             padding: "15px 40px", borderRadius: 4, transition: "all .2s",
           }}
           onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(255,255,255,0.1)"; }}

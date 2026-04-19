@@ -4,11 +4,11 @@ import ReactMarkdown from "react-markdown";
 import { G } from "../styles/tokens";
 
 const API = import.meta.env.VITE_API_URL;
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
+const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap');`;
 
 const M = {
   mono: "'DM Mono',monospace",
-  sans: "'DM Sans',sans-serif",
+  sans: "'Helvetica Neue',Helvetica,Arial,sans-serif",
   serif: "'Playfair Display',serif",
   green: "#22c55e", red: "#ef4444", amber: "#f59e0b",
   blue: "#60a5fa", purple: "#a78bfa", cyan: "#22d3ee",
@@ -422,8 +422,8 @@ export default function COTOverview() {
 
         {!loading && !error && (<>
           {/* Context box — sits just above the diagram on both mobile and desktop */}
-          <div style={{ background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: "16px 18px", fontFamily: M.mono, fontSize: 9, lineHeight: 1.8, color: G.text3, marginTop: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2, marginBottom: 8 }}>About this data</div>
+          <div style={{ background: G.s1, border: `1px solid ${G.border}`, borderRadius: 4, padding: "16px 18px", fontFamily: M.mono, fontSize: 13, lineHeight: 1.8, color: G.text3, marginTop: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2, marginBottom: 8 }}>About this data</div>
             <p style={{ marginBottom: 8 }}>Sourced from the CFTC Traders in Financial Futures (TFF) report. Covers regulated futures and options on futures. Published weekly -- positions reflect Tuesday close, released Friday 3:30 PM ET.</p>
             <p style={{ marginBottom: 8 }}>Each dot shows where a group's net positioning (as % of total open interest) sits vs its own history over the selected lookback window. Further right = more net long than usual. Further left = more net short than usual.</p>
             <p style={{ color: M.amber }}>Futures only. Does not capture OTC derivatives, spot holdings, ETF flows, or internal institutional allocations. Treat as a sentiment indicator, not a complete positioning census.</p>
@@ -453,7 +453,7 @@ export default function COTOverview() {
               padding: "14px 20px", marginTop: 20,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontFamily: M.mono, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2 }}>
+                <span style={{ fontFamily: M.mono, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, color: G.text2 }}>
                   AI Summary -- {lookback}w lookback
                 </span>
                 <span style={{
@@ -462,7 +462,7 @@ export default function COTOverview() {
                   border: "1px solid rgba(167,139,250,0.2)",
                 }}>claude sonnet</span>
               </div>
-              <div className="cot-ai-summary" style={{ fontFamily: M.sans, fontSize: 12, color: G.text2, lineHeight: 1.8, fontWeight: 300 }}>
+              <div className="cot-ai-summary" style={{ fontFamily: M.sans, fontSize: 15, color: G.text2, lineHeight: 1.8, fontWeight: 300 }}>
                 <ReactMarkdown components={{
                   strong: ({ children }) => <span style={{ color: G.text, fontWeight: 500 }}>{children}</span>,
                   p: ({ children }) => <p style={{ marginBottom: 8 }}>{children}</p>,

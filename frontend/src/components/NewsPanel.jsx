@@ -91,7 +91,7 @@ export default function NewsPanel({
                             {article.pubDate}
                         </span>
                     </div>
-                    <p style={{ fontSize: 11.5, color: G.text2, lineHeight: 1.4, margin: 0 }}>
+                    <p style={{ fontSize: 14, color: G.text2, lineHeight: 1.45, margin: 0 }}>
                         {article.title}
                     </p>
                 </div>

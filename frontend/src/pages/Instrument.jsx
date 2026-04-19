@@ -5,7 +5,7 @@ import { G } from "../styles/tokens";
 
 const API = import.meta.env.VITE_API_URL;
 
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');`;
+const FONT = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap');`;
 
 const PERIODS = [
   { label: "1D", interval: "intraday" },
@@ -139,7 +139,7 @@ function Nav({ navigate }) {
             onClick={() => { if (label === "Overview") navigate("/"); if (label === "Models") navigate("/models"); if (label === "Markets") navigate("/markets"); }}
             style={{
               padding: "5px 16px", borderRadius: 4, fontSize: 12, fontWeight: 400,
-              fontFamily: "'DM Sans',sans-serif",
+              fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif",
               color: G.textInv2, background: "none",
               border: "none", cursor: "pointer", transition: "all .15s",
             }}
@@ -252,7 +252,7 @@ export default function Instrument() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'DM Sans',sans-serif", color: G.text }}>
+    <div style={{ minHeight: "100vh", background: G.bg, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", color: G.text }}>
       <style>{`
         ${FONT}
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -411,12 +411,12 @@ export default function Instrument() {
             <>
               <div>
                 <p style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>Instrument</p>
-                <p style={{ fontSize: 13, color: G.textInv2, fontFamily: "'DM Sans',sans-serif" }}>{info.label || ticker}</p>
+                <p style={{ fontSize: 13, color: G.textInv2, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif" }}>{info.label || ticker}</p>
               </div>
               <div style={{ width: 1, height: 32, background: G.borderDk }} />
               <div>
                 <p style={{ fontSize: 9, fontFamily: "'DM Mono',monospace", color: G.textInv3, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>Asset Class</p>
-                <p style={{ fontSize: 13, color: G.textInv2, fontFamily: "'DM Sans',sans-serif", textTransform: "capitalize" }}>{info.assetType}</p>
+                <p style={{ fontSize: 13, color: G.textInv2, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", textTransform: "capitalize" }}>{info.assetType}</p>
               </div>
               <div style={{ width: 1, height: 32, background: G.borderDk }} />
               <div>
@@ -496,8 +496,8 @@ export default function Instrument() {
                   <span className="card-arrow" style={{ fontSize: 11, color: G.text3 }}></span>
                 </div>
                 <div>
-                  <p className="card-title" style={{ fontSize: 15, fontWeight: 600, color: G.text, fontFamily: "'DM Sans',sans-serif", marginBottom: 8 }}>{m.name}</p>
-                  <p className="card-desc" style={{ fontSize: 12, color: G.text3, fontFamily: "'DM Sans',sans-serif", fontWeight: 300, lineHeight: 1.7 }}>
+                  <p className="card-title" style={{ fontSize: 15, fontWeight: 600, color: G.text, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", marginBottom: 8 }}>{m.name}</p>
+                  <p className="card-desc" style={{ fontSize: 12, color: G.text3, fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif", fontWeight: 300, lineHeight: 1.7 }}>
                     {m.desc}
                   </p>
                 </div>
