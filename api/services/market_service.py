@@ -400,7 +400,7 @@ def download_and_save_csv():
     current_date = dt.datetime.now().date()
 
     date_5_years_ago = current_date- timedelta(days=1850)
-    df = yf.download(['QQQ'],start =date_5_years_ago )['Close']
+    df = yf.download(list(TICKER_DICTIONARY.keys()),start =date_5_years_ago )['Close']
     df = df.ffill()
     df
     returns_dict = {}
