@@ -400,10 +400,23 @@ def download_and_save_csv():
     current_date = dt.datetime.now().date()
 
     date_5_years_ago = current_date- timedelta(days=1850)
-    df = yf.download(list(TICKER_DICTIONARY.keys()),start =date_5_years_ago )['Close']
+    requested = list(TICKER_DICTIONARY.keys())
+    raw = yf.download(requested, start=date_5_years_ago, timeout=30)
+    df = raw['Close']
 
+    missing_cols = [t for t in requested if t not in df.columns]
+    last_row_nan = int(df.iloc[-1].isna().sum())
+    print(
+        f"[heatmap] yf.download shape={df.shape} "
+        f"requested={len(requested)} returned_cols={df.shape[1]} "
+        f"missing_cols={len(missing_cols)} last_row_nan={last_row_nan} "
+        f"last_index={df.index[-1].date() if len(df.index) else 'empty'}",
+        flush=True,
+    )
+    if missing_cols:
+        print(f"[heatmap] missing tickers: {missing_cols}", flush=True)
 
-    df = df.ffill()
+    df = df.ffill().bfill()
     returns_dict = {}
     last_price = df.iloc[-1]
     for tf, days in TIMEFRAME_DAYS.items():
