@@ -58,25 +58,38 @@ def _cot_stats():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup — everything before yield
+    heatmap_runner = logged_job("heatmap.refresh", download_and_save_csv, stats=_heatmap_stats)
+    cot_runner = logged_job("cot.refresh", refresh_cot_data, stats=_cot_stats)
+
     if not os.path.exists(CSV_PATH):
-        download_and_save_csv()
+        print("[cron] heatmap.refresh trigger=boot (csv missing)", flush=True)
+        heatmap_runner()
     if not os.path.exists(COT_CSV):
-        refresh_cot_data()
+        print("[cron] cot.refresh trigger=boot (csv missing)", flush=True)
+        cot_runner()
     if not os.path.exists(COT_CSV):
-        refresh_cot_data()
+        print("[cron] cot.refresh trigger=boot-retry (csv still missing)", flush=True)
+        cot_runner()
 
     scheduler.add_job(
-        logged_job("heatmap.refresh", download_and_save_csv, stats=_heatmap_stats),
+        heatmap_runner,
         "cron",
         hour=17, minute=0,
         timezone=timezone("America/New_York"),
+        id="heatmap.refresh", name="heatmap.refresh",
     )
     scheduler.add_job(
-        logged_job("cot.refresh", refresh_cot_data, stats=_cot_stats),
+        cot_runner,
         "cron",
         day_of_week="fri", hour=22, minute=0,
+        id="cot.refresh", name="cot.refresh",
     )
     scheduler.start()
+
+    print(f"[cron] scheduler started utc={_utc_now_iso()} jobs={len(scheduler.get_jobs())}", flush=True)
+    for job in scheduler.get_jobs():
+        nrt = job.next_run_time.isoformat() if job.next_run_time else "None"
+        print(f"[cron] registered id={job.id} next_run={nrt}", flush=True)
 
     yield
 
