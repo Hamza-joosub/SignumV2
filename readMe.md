@@ -111,6 +111,7 @@ conda activate quantlab
 cd /Users/hamza/Documents/Code Base/SignumV2
 uvicorn api.main:app --reload
 
+lsof -i:8000
 http://localhost:8000/docs — interactive Swagger UI 
 http://localhost:8000/api/heatmap?tf=1W — endpoint directly
 

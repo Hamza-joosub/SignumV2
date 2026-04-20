@@ -347,13 +347,7 @@ def compute_overview(cot_clean, lookback_weeks=104):
 
 
 
-def generate_cot_summary(overview_data, lookback_weeks=52):
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=500,
-        system = f"""You are a senior futures positioning analyst writing a weekly internal note for a macro trading desk.
+COT_SUMMARY_SYSTEM_PROMPT = """You are a senior futures positioning analyst writing a weekly internal note for a macro trading desk.
                      DATA CONTEXT:
                     You are given CFTC Commitments of Traders (COT) data from the Traders in Financial Futures (TFF) report.
                     Each instrument has the following fields:
@@ -366,7 +360,7 @@ def generate_cot_summary(overview_data, lookback_weeks=52):
                     - Conc_Gross_LE_4_TDR_Long/Short_All: percentage of OI held by the top 4 traders on each side
                     - Conc_Gross_LE_8_TDR_Long/Short_All: same for top 8
 
-                    The lookback window is provided with each request.the current data is lookback_weeks={lookback_weeks}. A 13-week lookback captures recent regime. 52-week captures a full year. This affects percentile interpretation — a p95 on 13w means "most extreme in 3 months", on 52w means "most extreme in a year."
+                    The lookback window is provided in each user message. A 13-week lookback captures recent regime. 52-week captures a full year. This affects percentile interpretation — a p95 on 13w means "most extreme in 3 months", on 52w means "most extreme in a year."
 
                     COVERAGE STRENGTH:
                     COVERAGE RULES:
@@ -404,13 +398,34 @@ def generate_cot_summary(overview_data, lookback_weeks=52):
                     Use bold for instrument names. Be direct and opinionated about what the data implies. Do not just describe the numbers — interpret what they mean for market sentiment and where the crowded or fragile trades are.
                     Do not recommend buying or selling any instrument or give price targets.
 
-                    Keep total output under 350 words.""",
+                    Keep total output under 350 words."""
+
+
+def generate_cot_summary(overview_data, lookback_weeks=52):
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1500,
+        system=[{
+            "type": "text",
+            "text": COT_SUMMARY_SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }],
         messages=[{
             "role": "user",
             "content": f"Here is the latest CFTC COT positioning overview using a {lookback_weeks}-week lookback. Summarize the key observations in under 300 words.\n\n{json.dumps(overview_data, indent=2)}"
         }]
     )
-    
+
+    usage = message.usage
+    print(
+        f"[cot_summary lb={lookback_weeks}w] stop={message.stop_reason} "
+        f"cache_write={getattr(usage, 'cache_creation_input_tokens', 0)} "
+        f"cache_read={getattr(usage, 'cache_read_input_tokens', 0)} "
+        f"input={usage.input_tokens} output={usage.output_tokens}"
+    )
+
     return message.content[0].text
 
 
@@ -441,7 +456,43 @@ def refresh_cot_data():
     
     
 
+def find_dominant_contracts(df, instrument_name):
+    """
+    For a given instrument, shows which contract names exist,
+    how many weeks each was dominant, and the date range of dominance.
+    
+    Use this BEFORE updating INSTRUMENT_MAP to understand what to include.
+    
+    Args:
+        df              : raw COT DataFrame
+        instrument_name : str — search term e.g. 'EURO FX', 'NASDAQ', 'BITCOIN'
+        top_n           : int — how many contracts to show
+    
+    Returns:
+        pd.DataFrame — contract names, dominance count, date ranges
+    """
+    # Find all contracts matching the search term and print the variant names
+    df_filtered = df[df['Market_and_Exchange_Names'].str.contains(instrument_name)]
+    df_filtered = df_filtered[['Market_and_Exchange_Names', 'Report_Date_as_MM_DD_YYYY', 'Open_Interest_All']]
+    df_filtered_pivot = df_filtered.pivot_table(
+    index='Report_Date_as_MM_DD_YYYY',
+    columns='Market_and_Exchange_Names',
+    values='Open_Interest_All',
+    aggfunc='first' ) # in case of duplicates, take first
 
+    
+    variant_names = (df_filtered_pivot.columns.values.tolist())
+    print(f"Variants: For {instrument_name}: ") 
+    for i in variant_names:
+        print(i)
+    if len(variant_names) == 0:
+        print('Probably Searched Wrong')
+
+    df_filtered_pivot['Total'] = df_filtered_pivot.sum(axis=1, )
+
+    df_filtered_pivot_proportions = df_filtered_pivot.div(df_filtered_pivot['Total'], axis=0) * 100
+    df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
+    return df_filtered_pivot_proportions
 
  
 
