@@ -10,6 +10,7 @@ pytz==2026.1.post1
 requests==2.32.5
 curl_cffi==0.13.0
 beautifulsoup4==4.14.3
+xlrd==2.0.2
 frozendict==2.4.7
 multitasking==0.0.12
 peewee==4.0.1
