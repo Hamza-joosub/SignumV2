@@ -402,13 +402,22 @@ def download_and_save_csv():
     date_5_years_ago = current_date- timedelta(days=1850)
     df = yf.download(list(TICKER_DICTIONARY.keys()),start =date_5_years_ago )['Close']
     df = df.ffill()
-    df
-    returns_dict = {}
-    last_price = df.iloc[-1]
-    for tf, days in TIMEFRAME_DAYS.items():
-        print(days)
-        return_for_tf = ((last_price - df.iloc[-days-1]) / df.iloc[-days-1]) * 100
-        returns_dict[tf] = return_for_tf
+
+    ##### iiiiiiiii haattttttteeeee timmmmmmmeeeezoneeeeeesssss
+    returns_dict = {tf: {} for tf in TIMEFRAME_DAYS}
+    for ticker in df.columns:
+        last_idx = df[ticker].last_valid_index()
+        if last_idx is None:
+            continue
+        last_pos = df.index.get_loc(last_idx)
+        last_price = df[ticker].iloc[last_pos]
+        for tf, days in TIMEFRAME_DAYS.items():
+            prev_pos = last_pos - days
+            if prev_pos < 0:
+                continue
+            prev_price = df[ticker].iloc[prev_pos]
+            if pd.notna(prev_price) and prev_price != 0:
+                returns_dict[tf][ticker] = (last_price - prev_price) / prev_price * 100
 
     returns_df = pd.DataFrame(returns_dict)
 
