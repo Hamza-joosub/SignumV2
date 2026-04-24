@@ -417,12 +417,11 @@ def download_and_save_csv():
         for tf, days in TIMEFRAME_DAYS.items():
                 prev_pos = last_pos - days
         
-                print(f'prev pos {prev_pos}')
+                
                 if prev_pos < 0:
                     continue
                 prev_price = df[ticker].iloc[prev_pos]
-                print(f'prev price {prev_price}')
-                
+
                 if pd.notna(prev_price) and prev_price != 0:
                     returns_dict[tf][ticker] = (last_price - prev_price) / prev_price * 100
 

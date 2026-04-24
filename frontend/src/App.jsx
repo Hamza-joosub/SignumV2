@@ -5,6 +5,7 @@ import Category from "./pages/Category"
 import Instrument from "./pages/Instrument"
 import Models from "./pages/Models"
 import COTOverview from "./pages/COTOverview";
+import COTCommodityOverview from "./pages/COTCommodityOverview";
 
 
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/markets/instrument/:ticker" element={<Instrument />} />
         <Route path="/models" element={<Models />} />
         <Route path="/models/cot" element={<COTOverview />} />
+        <Route path="/models/cot-commodity" element={<COTCommodityOverview />} />
       </Routes>
     </BrowserRouter>
   )

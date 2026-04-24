@@ -26,9 +26,12 @@ These apply to every task. Violating any of them is a bug regardless of what the
 |---|---|
 | "How does the system fit together? What's where?" | `.claude-context/docs/ARCHITECTURE.md` |
 | Any unknown acronym or jargon (AM, HF, pp, p95, coverage tier, Conc_Gross_LE_4…) | `.claude-context/docs/GLOSSARY.md` first |
-| Change COT data pipeline / compute_overview / INSTRUMENT_MAP / Claude prompt | `.claude-context/docs/COT_PIPELINE.md` |
-| Add a new instrument to COT | `.claude-context/docs/COT_PIPELINE.md` (workflow section) |
-| Change the COT overview page UI | `.claude-context/docs/COT_FRONTEND.md` |
+| Change the **financial** COT data pipeline / compute_overview / INSTRUMENT_MAP / Claude prompt | `.claude-context/docs/COT_PIPELINE.md` |
+| Add a new instrument to **financial** COT | `.claude-context/docs/COT_PIPELINE.md` (workflow section) |
+| Change the **commodity** COT data pipeline / compute_commodity_overview / INSTRUMENT_MAP | `.claude-context/docs/COT_COMMODITY_PIPELINE.md` |
+| Add a new instrument to **commodity** COT | `.claude-context/docs/COT_COMMODITY_PIPELINE.md` (workflow section) |
+| Change the **financial** COT overview page UI | `.claude-context/docs/COT_FRONTEND.md` |
+| Change the **commodity** COT overview page UI (heatmap grid) | `.claude-context/docs/COT_COMMODITY_FRONTEND.md` |
 | Change the Markets treemap, the Category page, or the Instrument page | `.claude-context/docs/MARKET_HEATMAP.md` |
 | Add or modify an instrument in the treemap | `.claude-context/docs/MARKET_HEATMAP.md` (weights, drill-down sections) |
 | Change an API endpoint's params, response shape, or behaviour | `.claude-context/docs/API_ENDPOINTS.md` |
@@ -36,7 +39,7 @@ These apply to every task. Violating any of them is a bug regardless of what the
 | Touch colours, typography, spacing, theme, or any `tokens.js` value | `.claude-context/docs/DESIGN_TOKENS.md` |
 | Understand *why* something was built a specific way / rejected approaches | `.claude-context/docs/DECISIONS.md` |
 | Check known bugs, cleanup tasks, roadmap | `.claude-context/docs/PENDING.md` |
-| Write an LLM prompt for a new feature | `.claude-context/docs/DECISIONS.md` (LLM prompt-engineering section) + `COT_PIPELINE.md` (the existing prompt as reference) |
+| Write an LLM prompt for a new feature | `.claude-context/docs/DECISIONS.md` (LLM prompt-engineering section) + `COT_PIPELINE.md` (the existing financial prompt as reference). Note: commodity COT LLM summary is **not wired yet** — see `COT_COMMODITY_PIPELINE.md`. |
 | Add caching, persistence, or a DB | `.claude-context/docs/DECISIONS.md` (file-based-cache entry) + `ARCHITECTURE.md` |
 | Deploy, CI, CORS, or env vars | `.claude-context/docs/ARCHITECTURE.md` (Environment + Runbook sections) |
 
@@ -60,7 +63,8 @@ npm run dev
 # → uses .env.local, hits backend at localhost:8000
 
 # Force a COT refresh locally
-rm cot_clean.csv && rm cot_overview_*.json
+rm cot_clean.csv && rm financials_cot_overview_*.json
+rm commodity_cot_clean.csv && rm commodity_cot_overview_*.json
 # Restart uvicorn; boot refresh regenerates
 
 # Force a heatmap refresh locally
@@ -144,9 +148,11 @@ SignumV2/
 ├── requirements.txt             ← Python deps (backend on Railway)
 ├── package.json                 ← stray root package.json (react-markdown — see PENDING)
 │
-├── heatmap_data.csv             ← daily-refreshed treemap cache
-├── cot_clean.csv                ← weekly-refreshed COT history
-└── cot_overview_{13,26,52}w.json← precomputed /api/cot/overview responses
+├── heatmap_data.csv                        ← daily-refreshed treemap cache
+├── cot_clean.csv                           ← weekly-refreshed financial COT history
+├── financials_cot_overview_{13,26,52}w.json← precomputed /api/cot/overview responses
+├── commodity_cot_clean.csv                 ← weekly-refreshed commodity COT history
+└── commodity_cot_overview_{13,26,52}w.json ← precomputed /api/commodity_cot/overview responses
 ```
 
 See `.claude-context/docs/ARCHITECTURE.md` for dataflow, deployment, scheduler, and runbook.

@@ -11,10 +11,14 @@ from pytz import timezone
 from api.routes import market_data
 from api.services.market_service import download_and_save_csv
 from api.services.cot_service import refresh_cot_data
+from api.services.cot_commodity_service import refresh_commodity_cot_data
 
 CSV_PATH = "heatmap_data.csv"
 COT_CSV = "cot_clean.csv"
-COT_OVERVIEWS = ("cot_overview_13w.json", "cot_overview_26w.json", "cot_overview_52w.json")
+COT_OVERVIEWS = ("financials_cot_overview_13w.json", "financials_cot_overview_26w.json", "financials_cot_overview_52w.json")
+COMMODITY_COT_CSV = "commodity_cot_clean.csv"
+COMMODITY_COT_OVERVIEWS = ("commodity_cot_overview_13w.json", "commodity_cot_overview_26w.json", "commodity_cot_overview_52w.json")
+
 scheduler = BackgroundScheduler()
 
 
@@ -60,6 +64,7 @@ async def lifespan(app: FastAPI):
     # Startup — everything before yield
     heatmap_runner = logged_job("heatmap.refresh", download_and_save_csv, stats=_heatmap_stats)
     cot_runner = logged_job("cot.refresh", refresh_cot_data, stats=_cot_stats)
+    commodity_cot_runner = logged_job("commodity_cot.refresh", refresh_commodity_cot_data, stats=_cot_stats)
 
     if not os.path.exists(CSV_PATH):
         print("[cron] heatmap.refresh trigger=boot (csv missing)", flush=True)
@@ -70,6 +75,14 @@ async def lifespan(app: FastAPI):
     if not os.path.exists(COT_CSV):
         print("[cron] cot.refresh trigger=boot-retry (csv still missing)", flush=True)
         cot_runner()
+
+    
+    if not os.path.exists(COMMODITY_COT_CSV):
+        print("[cron] commodity_cot.refresh trigger=boot (csv missing)", flush=True)
+        commodity_cot_runner()
+    if not os.path.exists(COMMODITY_COT_CSV):
+        print("[cron] commodity_cot.refresh trigger=boot-retry (csv still missing)", flush=True)
+        commodity_cot_runner()
 
     scheduler.add_job(
         heatmap_runner,
@@ -83,6 +96,15 @@ async def lifespan(app: FastAPI):
         "cron",
         day_of_week="fri", hour=22, minute=0,
         id="cot.refresh", name="cot.refresh",
+    )
+    scheduler.add_job(
+        commodity_cot_runner,
+        "cron",
+        day_of_week="wed",
+        hour=6,
+        minute=0,
+        timezone=timezone("America/New_York"),
+        id="commodity_cot.refresh", name="commodity_cot.refresh",
     )
     scheduler.start()
 
@@ -120,3 +142,6 @@ app.include_router(instruments.router, prefix="/api")
 
 from api.routes import cot_data
 app.include_router(cot_data.router, prefix="/api")
+
+from api.routes import commodity_cot_data
+app.include_router(commodity_cot_data.router, prefix="/api")

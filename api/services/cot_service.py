@@ -123,6 +123,44 @@ def download_cot_data(years, report_type='combined'):
     return pd.concat(dfs, ignore_index=True)
 
 
+def find_dominant_contracts(df, instrument_name):
+    """
+    For a given instrument, shows which contract names exist,
+    how many weeks each was dominant, and the date range of dominance.
+    
+    Use this BEFORE updating INSTRUMENT_MAP to understand what to include.
+    
+    Args:
+        df              : raw COT DataFrame
+        instrument_name : str — search term e.g. 'EURO FX', 'NASDAQ', 'BITCOIN'
+        top_n           : int — how many contracts to show
+    
+    Returns:
+        pd.DataFrame — contract names, dominance count, date ranges
+    """
+    # Find all contracts matching the search term and print the variant names
+    df_filtered = df[df['Market_and_Exchange_Names'].str.contains(instrument_name)]
+    df_filtered = df_filtered[['Market_and_Exchange_Names', 'Report_Date_as_MM_DD_YYYY', 'Open_Interest_All']]
+    df_filtered_pivot = df_filtered.pivot_table(
+    index='Report_Date_as_MM_DD_YYYY',
+    columns='Market_and_Exchange_Names',
+    values='Open_Interest_All',
+    aggfunc='first' ) # in case of duplicates, take first
+
+    
+    variant_names = (df_filtered_pivot.columns.values.tolist())
+    print(f"Variants: For {instrument_name}: ") 
+    for i in variant_names:
+        print(i)
+    if len(variant_names) == 0:
+        print('Probably Searched Wrong')
+
+    df_filtered_pivot['Total'] = df_filtered_pivot.sum(axis=1, )
+
+    df_filtered_pivot_proportions = df_filtered_pivot.div(df_filtered_pivot['Total'], axis=0) * 100
+    df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
+    return df_filtered_pivot_proportions
+
 def wavg(group, conc_cols):
         weights = group['Open_Interest_All']
         total = weights.sum()
@@ -201,7 +239,6 @@ def clean_financial_cot_data(df, instrument_map):
 
     return df
 
-
 def feature_engineering(cot_clean):
     cot_clean["Dealer Net"] = cot_clean['Dealer_Positions_Long_All'] - cot_clean['Dealer_Positions_Short_All']
     cot_clean["Asset Manager Net"] = cot_clean['Asset_Mgr_Positions_Long_All'] - cot_clean['Asset_Mgr_Positions_Short_All'] 
@@ -218,7 +255,6 @@ def feature_engineering(cot_clean):
 
 
     return cot_clean
-
 
 def get_align_prices(cot_clean):
     instrument_list = cot_clean['Instrument'].unique().tolist()
@@ -429,6 +465,14 @@ def generate_cot_summary(overview_data, lookback_weeks=52):
     return message.content[0].text
 
 
+
+    
+    
+
+
+
+ 
+
 def refresh_cot_data():
     cot_raw = download_cot_data([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
     cot_clean = clean_financial_cot_data(cot_raw, INSTRUMENT_MAP)
@@ -451,52 +495,8 @@ def refresh_cot_data():
             "summary": summary,
         }
         
-        with open(f'cot_overview_{lb}w.json', 'w') as f:
+        with open(f'financials_cot_overview_{lb}w.json', 'w') as f:
             json.dump(output, f, default=str)
-    
-    
-
-def find_dominant_contracts(df, instrument_name):
-    """
-    For a given instrument, shows which contract names exist,
-    how many weeks each was dominant, and the date range of dominance.
-    
-    Use this BEFORE updating INSTRUMENT_MAP to understand what to include.
-    
-    Args:
-        df              : raw COT DataFrame
-        instrument_name : str — search term e.g. 'EURO FX', 'NASDAQ', 'BITCOIN'
-        top_n           : int — how many contracts to show
-    
-    Returns:
-        pd.DataFrame — contract names, dominance count, date ranges
-    """
-    # Find all contracts matching the search term and print the variant names
-    df_filtered = df[df['Market_and_Exchange_Names'].str.contains(instrument_name)]
-    df_filtered = df_filtered[['Market_and_Exchange_Names', 'Report_Date_as_MM_DD_YYYY', 'Open_Interest_All']]
-    df_filtered_pivot = df_filtered.pivot_table(
-    index='Report_Date_as_MM_DD_YYYY',
-    columns='Market_and_Exchange_Names',
-    values='Open_Interest_All',
-    aggfunc='first' ) # in case of duplicates, take first
-
-    
-    variant_names = (df_filtered_pivot.columns.values.tolist())
-    print(f"Variants: For {instrument_name}: ") 
-    for i in variant_names:
-        print(i)
-    if len(variant_names) == 0:
-        print('Probably Searched Wrong')
-
-    df_filtered_pivot['Total'] = df_filtered_pivot.sum(axis=1, )
-
-    df_filtered_pivot_proportions = df_filtered_pivot.div(df_filtered_pivot['Total'], axis=0) * 100
-    df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
-    return df_filtered_pivot_proportions
-
- 
-
-
 
 
     
