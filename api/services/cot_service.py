@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import requests
 import zipfile
 import io
@@ -73,6 +74,27 @@ TICKER_MAP = {
     'CAD' :         'CAD=X',
     'CHF' :         'CHF=X',
     'NASDAQ':       'QQQ'
+}
+
+
+# Coverage tier per instrument — single source of truth, consumed by the LLM
+# prompt and the frontend. Rationale lives in COT_PIPELINE.md (Coverage tier
+# section): high = rates/FX where futures are the dominant institutional
+# venue; moderate = equity indices (large cash/ETF exposure lives outside
+# futures); low = BTC (post-ETF, futures positioning is dominated by basis
+# trades, not directional conviction).
+COVERAGE_MAP = {
+    'US10Y':      'high',
+    '1 Month US': 'high',
+    '3 Month US': 'high',
+    'GBP':        'high',
+    'YEN':        'high',
+    'CAD':        'high',
+    'CHF':        'high',
+    'SP500':      'moderate',
+    'NASDAQ':     'moderate',
+    'russel':     'moderate',
+    'BTC':        'low',
 }
 
 
@@ -161,44 +183,41 @@ def find_dominant_contracts(df, instrument_name):
     df_filtered_pivot_proportions = df_filtered_pivot_proportions.drop(columns='Total')
     return df_filtered_pivot_proportions
 
-def wavg(group, conc_cols):
-        weights = group['Open_Interest_All']
-        total = weights.sum()
-        if total == 0:
-            return pd.Series({c: 0.0 for c in conc_cols})
-        return pd.Series({c: (group[c] * weights).sum() / total for c in conc_cols})
-
 def clean_financial_cot_data(df, instrument_map):
     ''' Dealer — financial institutions/dealers (often on the other side of client trades)
         Asset_Mgr — institutional investors like pension funds, mutual funds
         Lev_Money — leveraged money (hedge funds, CTAs)
         Other_Rept — other reportable traders
-        NonRept — non-reportable (small traders below reporting thresholds)
-        Traders - it's counting number of traders, knowing 47 dealers are long tells you less than knowing their total position size
-        Concentration Report - Shows what % of open interest the top 4 and top 8 traders control'''
-    
+        Tot_Rept  — sum of all reportable traders (derived by CFTC)
+        NonRept   — non-reportable (small traders below reporting thresholds)
+        Traders_* — trader counts per bucket/side. CFTC suppresses counts when
+                    fewer than 4 traders are in a category (confidentiality);
+                    NaN is therefore equivalent to "no meaningful activity" and
+                    is filled with 0 before aggregation.'''
+
     # take only the columns we need
     df = df[[
-        'Market_and_Exchange_Names', 
-        'Report_Date_as_MM_DD_YYYY', 
-        'Open_Interest_All', 
+        'Market_and_Exchange_Names',
+        'Report_Date_as_MM_DD_YYYY',
+        'Open_Interest_All',
 
-        # Dealer
+        # Dealer — positions + trader counts
         'Dealer_Positions_Long_All', 'Dealer_Positions_Short_All', 'Dealer_Positions_Spread_All',
-        # Asset Manager
+        'Traders_Dealer_Long_All', 'Traders_Dealer_Short_All', 'Traders_Dealer_Spread_All',
+        # Asset Manager — positions + trader counts
         'Asset_Mgr_Positions_Long_All', 'Asset_Mgr_Positions_Short_All', 'Asset_Mgr_Positions_Spread_All',
-        # Hedge Fund / Leveraged
+        'Traders_Asset_Mgr_Long_All', 'Traders_Asset_Mgr_Short_All', 'Traders_Asset_Mgr_Spread_All',
+        # Hedge Fund / Leveraged — positions + trader counts
         'Lev_Money_Positions_Long_All', 'Lev_Money_Positions_Short_All', 'Lev_Money_Positions_Spread_All',
-        # Other Reportable
+        'Traders_Lev_Money_Long_All', 'Traders_Lev_Money_Short_All', 'Traders_Lev_Money_Spread_All',
+        # Other Reportable — positions + trader counts
         'Other_Rept_Positions_Long_All', 'Other_Rept_Positions_Short_All', 'Other_Rept_Positions_Spread_All',
-        # Non-Reportable
+        'Traders_Other_Rept_Long_All', 'Traders_Other_Rept_Short_All', 'Traders_Other_Rept_Spread_All',
+        # Total Reportable — trader counts (positions are derivable from the bucket sums)
+        'Traders_Tot_Rept_Long_All', 'Traders_Tot_Rept_Short_All',
+        # Non-Reportable — positions only (CFTC does not publish trader counts)
         'NonRept_Positions_Long_All', 'NonRept_Positions_Short_All',
-
-        # Concentration — top 4 and top 8 traders
-        'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
-        'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
     ]]
-
 
     df['Report_Date_as_MM_DD_YYYY'] = pd.to_datetime(df['Report_Date_as_MM_DD_YYYY'])
     df = df.sort_values('Report_Date_as_MM_DD_YYYY')
@@ -206,53 +225,51 @@ def clean_financial_cot_data(df, instrument_map):
     df['Instrument'] = df['Market_and_Exchange_Names'].map(instrument_map)
     df = df[df['Instrument'].notna()].copy()
 
-    conc_cols = [
-        'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
-        'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
-    ]
-
     cols_to_sum = df.columns.values.tolist()
     cols_to_sum.remove('Market_and_Exchange_Names')
     cols_to_sum.remove('Report_Date_as_MM_DD_YYYY')
     cols_to_sum.remove('Instrument')
-    for c in conc_cols:
-        cols_to_sum.remove(c)
 
-    # Sum position columns
+    df[cols_to_sum] = df[cols_to_sum].apply(pd.to_numeric, errors='coerce')
+    df[cols_to_sum] = df[cols_to_sum].fillna(0)
+
     df_summed = (
         df.groupby(['Instrument', 'Report_Date_as_MM_DD_YYYY'])[cols_to_sum]
         .sum()
         .reset_index()
     )
 
-    # Weighted average concentration by OI
-    
-
-    df_conc = (
-        df.groupby(['Instrument', 'Report_Date_as_MM_DD_YYYY'])
-        .apply(wavg, conc_cols)
-        .reset_index()
-    )
-
-    df = df_summed.merge(df_conc, on=['Instrument', 'Report_Date_as_MM_DD_YYYY'])
-
-
-    return df
+    return df_summed
 
 def feature_engineering(cot_clean):
-    cot_clean["Dealer Net"] = cot_clean['Dealer_Positions_Long_All'] - cot_clean['Dealer_Positions_Short_All']
-    cot_clean["Asset Manager Net"] = cot_clean['Asset_Mgr_Positions_Long_All'] - cot_clean['Asset_Mgr_Positions_Short_All'] 
-    cot_clean["Levered Net"] = cot_clean['Lev_Money_Positions_Long_All'] - cot_clean['Lev_Money_Positions_Short_All']
-    cot_clean["Other Rept Positions Net"] = cot_clean['Other_Rept_Positions_Long_All'] - cot_clean['Other_Rept_Positions_Short_All']
-    cot_clean["Non Rept Positions Net"] = cot_clean['NonRept_Positions_Long_All'] - cot_clean['NonRept_Positions_Short_All']
-    
-    # In feature_engineering:
-    cot_clean["Dealer Net Pct OI"] = cot_clean["Dealer Net"] / cot_clean["Open_Interest_All"]
-    cot_clean["AM Net Pct OI"] = cot_clean["Asset Manager Net"] / cot_clean["Open_Interest_All"]
-    cot_clean["HF Net Pct OI"] = cot_clean["Levered Net"] / cot_clean["Open_Interest_All"]
-    cot_clean["Other Rept Positions Net Pct OI"] = cot_clean['Other Rept Positions Net']/cot_clean["Open_Interest_All"]
-    cot_clean["Non Rept Positions Net Pct OI"] = cot_clean['Non Rept Positions Net']/cot_clean["Open_Interest_All"]
+    """
+    Spread-adjusts Dealer / AM / HF positions (half of the spread position is
+    added to each of long and short — the standard practitioner approach;
+    leaves net unchanged but states gross correctly for spread-ratio maths).
+    Then recomputes Net and Net % OI from the adjusted longs/shorts.
 
+    Matches the commodity pipeline's feature_engineering for MM/SW/OT. The
+    TFF report carries a spread column for every bucket we care about, so
+    all three financial buckets get the treatment.
+    """
+
+    spread_categories = [
+        ('Dealer', 'Dealer_Positions_Long_All',    'Dealer_Positions_Short_All',    'Dealer_Positions_Spread_All'),
+        ('AM',     'Asset_Mgr_Positions_Long_All', 'Asset_Mgr_Positions_Short_All', 'Asset_Mgr_Positions_Spread_All'),
+        ('HF',     'Lev_Money_Positions_Long_All', 'Lev_Money_Positions_Short_All', 'Lev_Money_Positions_Spread_All'),
+    ]
+
+    cot_clean = cot_clean.copy()
+
+    for cat, long_col, short_col, spread_col in spread_categories:
+        cot_clean[f'Adjusted_{cat}_Long_All']  = cot_clean[long_col]  + 0.5 * cot_clean[spread_col]
+        cot_clean[f'Adjusted_{cat}_Short_All'] = cot_clean[short_col] + 0.5 * cot_clean[spread_col]
+
+    oi = cot_clean['Open_Interest_All'].replace(0, np.nan)
+
+    cot_clean['Dealer_Net_pct'] = (cot_clean['Adjusted_Dealer_Long_All'] - cot_clean['Adjusted_Dealer_Short_All']) / oi
+    cot_clean['AM_Net_pct']     = (cot_clean['Adjusted_AM_Long_All']     - cot_clean['Adjusted_AM_Short_All'])     / oi
+    cot_clean['HF_Net_pct']     = (cot_clean['Adjusted_HF_Long_All']     - cot_clean['Adjusted_HF_Short_All'])     / oi
 
     return cot_clean
 
@@ -277,137 +294,140 @@ def get_align_prices(cot_clean):
     cot_data = cot_data.reset_index()
     return cot_data
 
-def compute_overview(cot_clean, lookback_weeks=104):
-    overview = []
-    for inst in cot_clean['Instrument'].unique():
-        df = cot_clean[cot_clean['Instrument'] == inst].copy()
-        window = df.tail(lookback_weeks)
-        
+def compute_overview(cot_clean, lookback_weeks=52, spread_threshold=75):
+    """
+    Takes the cleaned + feature-engineered financial COT dataframe and returns
+    a snapshot (list of dicts) with one row per instrument containing all
+    pre-computed fields the frontend needs.
 
-        latest = window.iloc[-1]
-        dlr_pctl = (window['Dealer Net Pct OI'] < latest['Dealer Net Pct OI']).mean() * 100  
-        am_pctl = (window['AM Net Pct OI'] < latest['AM Net Pct OI']).mean() * 100
-        hf_pctl = (window['HF Net Pct OI'] < latest['HF Net Pct OI']).mean() * 100
+    Mirrors the shape of the commodity overview (PM/SW/MM/OT) with the
+    financial buckets (Dealer/AM/HF). Rank formula, spread ratio/flag
+    mechanics, and min-5-obs gate are deliberately unified with commodity.
+    """
 
-        """
-        1 Week stuff(quite noisy) ______________________
-        """
-        prev_1W = window.iloc[-2]
-        
-        dlr_chg_pct_oi_1W = float(latest['Dealer Net Pct OI'] - prev_1W['Dealer Net Pct OI'])
-        am_chg_pct_oi_1W = float(latest['AM Net Pct OI'] - prev_1W['AM Net Pct OI'])
-        hf_chg_pct_oi_1W = float(latest['HF Net Pct OI'] - prev_1W['HF Net Pct OI'])
+    df = cot_clean.copy()
+    df["Report_Date_as_MM_DD_YYYY"] = pd.to_datetime(df["Report_Date_as_MM_DD_YYYY"])
+    df = df.sort_values(["Instrument", "Report_Date_as_MM_DD_YYYY"]).reset_index(drop=True)
 
-        oi_chg_1W = int(latest['Open_Interest_All'] - prev_1W['Open_Interest_All'])
-        oi_chg_pct_1W = (latest['Open_Interest_All'] - prev_1W['Open_Interest_All']) / prev_1W['Open_Interest_All']
+    # ── Spread ratios ────────────────────────────────────────────────────────
+    for prefix, long_col, short_col, spread_col in [
+        ("Dealer", "Adjusted_Dealer_Long_All", "Adjusted_Dealer_Short_All", "Dealer_Positions_Spread_All"),
+        ("AM",     "Adjusted_AM_Long_All",     "Adjusted_AM_Short_All",     "Asset_Mgr_Positions_Spread_All"),
+        ("HF",     "Adjusted_HF_Long_All",     "Adjusted_HF_Short_All",     "Lev_Money_Positions_Spread_All"),
+    ]:
+        gross = df[long_col] + df[short_col] + df[spread_col]
+        df[f"{prefix}_spread_ratio"] = df[spread_col] / gross.replace(0, np.nan)
 
-        price_1W = float(latest['Price']) if pd.notna(latest.get('Price')) else None
-        prev_price_1W = float(prev_1W['Price']) if pd.notna(prev_1W.get('Price')) else None
-        price_chg_pct_1W =  ( ( (price_1W - prev_price_1W) / prev_price_1W)*100) if (price_1W and prev_price_1W) else None
+    # ── Rolling percentile rank (n-1 denom, min 5 obs, rounded) ───────────────
+    def rolling_pct_rank(series: pd.Series, w: int) -> pd.Series:
+        result = np.full(len(series), np.nan)
+        arr = series.values
+        for i in range(len(arr)):
+            if np.isnan(arr[i]):
+                continue
+            sl = arr[max(0, i - w + 1) : i + 1]
+            valid = sl[~np.isnan(sl)]
+            if len(valid) < 5:
+                continue
+            result[i] = round(np.sum(valid < arr[i]) / (len(valid) - 1) * 100)
+        return pd.Series(result, index=series.index)
 
+    rank_targets = {
+        "Dealer_rank"        : "Dealer_Net_pct",
+        "AM_rank"            : "AM_Net_pct",
+        "HF_rank"            : "HF_Net_pct",
+        "OI_rank"            : "Open_Interest_All",
+        "Dealer_spread_rank" : "Dealer_spread_ratio",
+        "AM_spread_rank"     : "AM_spread_ratio",
+        "HF_spread_rank"     : "HF_spread_ratio",
+    }
+    for out_col, src_col in rank_targets.items():
+        df[out_col] = (
+            df.groupby("Instrument")[src_col]
+            .transform(lambda s: rolling_pct_rank(s, lookback_weeks))
+        )
 
-        """
-        1 Month stuff(Less noisy) ______________________
-        """
-        prev_1M = window.iloc[-5]
-        
+    # ── Spread flags ──────────────────────────────────────────────────────────
+    for p in ("Dealer", "AM", "HF"):
+        df[f"{p}_spread_flagged"] = df[f"{p}_spread_rank"] >= spread_threshold
 
-        dlr_chg_pct_oi_1M = float(latest['Dealer Net Pct OI'] - prev_1M['Dealer Net Pct OI'])
-        am_chg_pct_oi_1M = float(latest['AM Net Pct OI'] - prev_1M['AM Net Pct OI'])
-        hf_chg_pct_oi_1M = float(latest['HF Net Pct OI'] - prev_1M['HF Net Pct OI'])
+    # ── 1W / 1M positioning change (percentage points, not percent) ───────────
+    # iloc[-2] = 1 row back = 1 week; iloc[-5] = 4 rows back ≈ 1 month.
+    for p in ("Dealer", "AM", "HF"):
+        df[f"{p}_chg_pp_1W"] = df.groupby("Instrument")[f"{p}_Net_pct"].transform(lambda s: (s - s.shift(1)) * 100)
+        df[f"{p}_chg_pp_1M"] = df.groupby("Instrument")[f"{p}_Net_pct"].transform(lambda s: (s - s.shift(4)) * 100)
 
-        oi_chg_1M = int(latest['Open_Interest_All'] - prev_1M['Open_Interest_All'])
-        oi_chg_pct_1M = (latest['Open_Interest_All'] - prev_1M['Open_Interest_All']) / prev_1M['Open_Interest_All']
+    # ── 1W / 1M OI change (percent) ───────────────────────────────────────────
+    df["oi_chg_pct_1W"] = df.groupby("Instrument")["Open_Interest_All"].transform(lambda s: s.pct_change()  * 100)
+    df["oi_chg_pct_1M"] = df.groupby("Instrument")["Open_Interest_All"].transform(lambda s: s.pct_change(4) * 100)
 
-        price_1M = float(latest['Price']) if pd.notna(latest.get('Price')) else None
-        prev_price_1M = float(prev_1M['Price']) if pd.notna(prev_1M.get('Price')) else None
-        price_chg_pct_1M =  ( ( (price_1M - prev_price_1M) / prev_price_1M)*100) if (price_1M and prev_price_1M) else None
+    # ── 1W / 1M price change (percent) ────────────────────────────────────────
+    df["price_chg_pct_1W"] = df.groupby("Instrument")["Price"].transform(lambda s: s.pct_change()  * 100)
+    df["price_chg_pct_1M"] = df.groupby("Instrument")["Price"].transform(lambda s: s.pct_change(4) * 100)
 
+    # ── Per-instrument static fields ──────────────────────────────────────────
+    df["Coverage"] = df["Instrument"].map(COVERAGE_MAP)
+    df["Ticker"]   = df["Instrument"].map(TICKER_MAP)
 
+    # ── Snapshot — latest row per instrument ──────────────────────────────────
+    snapshot = (
+        df.sort_values("Report_Date_as_MM_DD_YYYY")
+        .groupby("Instrument")
+        .last()
+        .reset_index()
+    )
 
-        conc_cols = [
-            'Conc_Gross_LE_4_TDR_Long_All', 'Conc_Gross_LE_4_TDR_Short_All',
-            'Conc_Gross_LE_8_TDR_Long_All', 'Conc_Gross_LE_8_TDR_Short_All',
-        ]
+    keep = [
+        "Instrument", "Ticker", "Report_Date_as_MM_DD_YYYY", "Coverage",
+        "Open_Interest_All", "OI_rank", "oi_chg_pct_1W", "oi_chg_pct_1M",
+        "Price", "price_chg_pct_1W", "price_chg_pct_1M",
+        "Dealer_rank", "Dealer_chg_pp_1W", "Dealer_chg_pp_1M",
+        "Dealer_spread_ratio", "Dealer_spread_rank", "Dealer_spread_flagged",
+        "AM_rank", "AM_chg_pp_1W", "AM_chg_pp_1M",
+        "AM_spread_ratio", "AM_spread_rank", "AM_spread_flagged",
+        "HF_rank", "HF_chg_pp_1W", "HF_chg_pp_1M",
+        "HF_spread_ratio", "HF_spread_rank", "HF_spread_flagged",
+    ]
+    snapshot = snapshot[keep].copy()
 
-        conc = {}
-        for col in conc_cols:
-            if col in latest.index and pd.notna(latest[col]):
-                conc[col] = float(latest[col])
-                conc[f'{col}_chg_1W'] = round(float(latest[col] - prev_1W[col]), 2) if pd.notna(prev_1W[col]) else None
-                conc[f'{col}_chg_1M'] = round(float(latest[col] - prev_1M[col]), 2) if pd.notna(prev_1M[col]) else None 
+    rank_cols = [c for c in keep if c.endswith("_rank")]
+    snapshot[rank_cols] = snapshot[rank_cols].round(0).astype("Int64")
+    snapshot["Report_Date_as_MM_DD_YYYY"] = snapshot["Report_Date_as_MM_DD_YYYY"].dt.strftime("%Y-%m-%d")
 
-        overview.append({
-                'instrument': inst,
-                'ticker': TICKER_MAP.get(inst, ''),
-                'latest_date': latest['Report_Date_as_MM_DD_YYYY'].strftime('%Y-%m-%d') if hasattr(latest['Report_Date_as_MM_DD_YYYY'], 'strftime') else str(latest['Report_Date_as_MM_DD_YYYY'])[:10],
-                'oi': int(latest['Open_Interest_All']),
+    # NaN → None for clean JSON serialisation (NaN is not valid JSON).
+    snapshot = snapshot.astype(object).where(snapshot.notna(), None)
 
-                # Price
-                'price': price_1W,
-                'price_chg_pct_1W': float(price_chg_pct_1W) if price_chg_pct_1W is not None else None,
-                'price_chg_pct_1M': float(price_chg_pct_1M) if price_chg_pct_1M is not None else None,
-
-                # Dealer — positioning
-                'dealer_net': int(latest['Dealer Net']),
-                'dealer_net_pct_oi': float(latest['Dealer Net Pct OI']),
-                'dealer_pctl': float(dlr_pctl),
-                'dealer_chg_pct_oi_1W': dlr_chg_pct_oi_1W,
-                'dealer_chg_pct_oi_1M': dlr_chg_pct_oi_1M,
-
-                # Asset Manager — positioning
-                'am_net': int(latest['Asset Manager Net']),
-                'am_net_pct_oi': float(latest['AM Net Pct OI']),
-                'am_pctl': float(am_pctl),
-                'am_chg_pct_oi_1W': am_chg_pct_oi_1W,
-                'am_chg_pct_oi_1M': am_chg_pct_oi_1M,
-
-                # Hedge Fund — positioning
-                'hf_net': int(latest['Levered Net']),
-                'hf_net_pct_oi': float(latest['HF Net Pct OI']),
-                'hf_pctl': float(hf_pctl),
-                'hf_chg_pct_oi_1W': hf_chg_pct_oi_1W,
-                'hf_chg_pct_oi_1M': hf_chg_pct_oi_1M,
-
-                # OI
-                'oi_chg_1W': oi_chg_1W,
-                'oi_chg_pct_1W': float(oi_chg_pct_1W),
-                'oi_chg_1M': oi_chg_1M,
-                'oi_chg_pct_1M': float(oi_chg_pct_1M),
-
-                # Concentration
-                **conc,
-            })
-
-    return overview
+    return snapshot.to_dict(orient="records")
 
 
 
 COT_SUMMARY_SYSTEM_PROMPT = """You are a senior futures positioning analyst writing a weekly internal note for a macro trading desk.
                      DATA CONTEXT:
                     You are given CFTC Commitments of Traders (COT) data from the Traders in Financial Futures (TFF) report.
-                    Each instrument has the following fields:
-                    - dealer_net, am_net, hf_net: net contracts (long - short) for Dealers, Asset Managers, and Leveraged Money (hedge funds)
-                    - dealer_net_pct_oi, am_net_pct_oi, hf_net_pct_oi: net position as percentage of total open interest (the key normalized metric)
-                    - dealer_pctl, am_pctl, hf_pctl: percentile rank of current net/OI vs the lookback window. 0 = most net short in the window. 100 = most net long. 50 = median.
-                    - _chg_pct_oi_1W / _chg_pct_oi_1M: change in net/OI over 1 week and 1 month (in percentage points, not percent)
-                    - oi_chg_pct_1W / _1M: percentage change in total open interest
-                    - price_chg_pct_1W / _1M: percentage change in price (from aligned yfinance data)
-                    - Conc_Gross_LE_4_TDR_Long/Short_All: percentage of OI held by the top 4 traders on each side
-                    - Conc_Gross_LE_8_TDR_Long/Short_All: same for top 8
+                    Positions are spread-adjusted: half of each bucket's spread position is attributed to its long side and half to its short side (standard practitioner treatment — leaves net unchanged but states gross correctly).
+                    Each instrument row has the following fields:
+                    - Instrument, Ticker, Report_Date_as_MM_DD_YYYY: identifiers and snapshot date.
+                    - Coverage: "high" / "moderate" / "low" — how much of real institutional positioning in this instrument is captured by futures data. See COVERAGE RULES below.
+                    - Open_Interest_All: total contracts outstanding. OI_rank: percentile rank of current OI in the lookback window (100 = most participation in the window).
+                    - oi_chg_pct_1W / oi_chg_pct_1M: percentage change in total open interest over 1 week / 1 month.
+                    - Price, price_chg_pct_1W, price_chg_pct_1M: price from aligned yfinance data and its percent changes.
+                    - Dealer_rank, AM_rank, HF_rank: percentile rank of current spread-adjusted net / OI vs the lookback window. 0 = most net short in the window. 100 = most net long. 50 = median.
+                    - Dealer_chg_pp_1W / Dealer_chg_pp_1M (and same for AM, HF): change in spread-adjusted net / OI over 1 week / 1 month, in percentage points (not percent).
+                    - Dealer_spread_ratio, AM_spread_ratio, HF_spread_ratio: share of that bucket's gross positioning that is spread (calendar) positions rather than outright directional. Higher = more spreading.
+                    - Dealer_spread_rank, AM_spread_rank, HF_spread_rank: percentile rank of the spread ratio in the lookback window.
+                    - Dealer_spread_flagged, AM_spread_flagged, HF_spread_flagged: True when the spread rank is at or above the 75th percentile. When True, the bucket's positioning rank is a less reliable directional signal — an unusually large share of its positioning is calendar spreading, not outright conviction. Caveat that bucket's signal accordingly.
 
-                    The lookback window is provided in each user message. A 13-week lookback captures recent regime. 52-week captures a full year. This affects percentile interpretation — a p95 on 13w means "most extreme in 3 months", on 52w means "most extreme in a year."
+                    The lookback window is provided in each user message. A 13-week lookback captures recent regime. 52-week captures a full year. This affects rank interpretation — a rank of 95 on 13w means "most extreme in 3 months", on 52w means "most extreme in a year."
 
-                    COVERAGE STRENGTH:
-                    COVERAGE RULES:
-                    - HIGH coverage (rates, FX): Make assertive claims. This data is close to the full picture. Percentile extremes here are genuine signals.
+                    COVERAGE RULES (always defer to the Coverage field on the row):
+                    - HIGH coverage (rates, FX): Make assertive claims. This data is close to the full picture. Rank extremes here are genuine signals.
                     - MODERATE coverage (equity indices): Qualify claims. Say "futures positioning suggests..." not "the market is positioned for...". Institutions have significant exposure outside futures that this data does not capture.
                     - LOW coverage (BTC): Always caveat. Post-ETF, this data primarily reflects hedge fund basis trades, not overall institutional sentiment. Do not draw broad conclusions about "the market" from BTC futures positioning alone.
                     - Never present a low-coverage signal with the same confidence as a high-coverage signal. If rates and BTC both show an extreme, the rates signal is far more meaningful — say so explicitly.
 
                     INTERPRETATION GUIDANCE:
                     - Consider what divergences between groups might imply about who will need to adjust.
-                    - Note when concentration is high enough that a single participant could move the market.
+                    - When a bucket's *_spread_flagged is True, explicitly treat that bucket's rank as less reliable for the week — the positioning is meaningfully calendar-spread activity rather than directional conviction.
                     - Distinguish between voluntary repositioning and forced liquidation where the data suggests it.
                     - Weight monthly changes over weekly — single-week moves are noisy.
                     - Consider coverage strength when making claims. Be more assertive on rates/FX, more cautious on BTC.
@@ -425,7 +445,7 @@ COT_SUMMARY_SYSTEM_PROMPT = """You are a senior futures positioning analyst writ
                     - State the positioning fact
                     - Interpret what it means — why is this group positioned this way? What view does it imply?
                     - Compare across instruments where relevant (e.g. "AM is long duration but short equities, consistent with recession positioning")
-                    - Flag fragility — is this crowded? Is concentration dangerous? Who gets forced out first?
+                    - Flag fragility — is this crowded? Is a bucket's signal weakened by an elevated spread flag? Who gets forced out first?
 
                     3. CROSS-INSTRUMENT THEMES: Where do you see the same story showing up across multiple instruments? For example: are rate and FX positioning telling the same story? Does equity positioning contradict what rates are saying? Call out consistency and contradictions.
 
@@ -466,12 +486,6 @@ def generate_cot_summary(overview_data, lookback_weeks=52):
 
 
 
-    
-    
-
-
-
- 
 
 def refresh_cot_data():
     cot_raw = download_cot_data([2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
