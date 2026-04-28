@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 import pandas as pd
 import numpy as np
-from api.services.cot_service import TICKER_MAP
+from api.services.models.cot_service import TICKER_MAP
 import json
 import os
 

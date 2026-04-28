@@ -128,7 +128,10 @@ SignumV2/
 ├── api/                         ← FastAPI backend
 │   ├── main.py                  ← app + lifespan + scheduler + CORS
 │   ├── routes/*.py              ← HTTP layer, thin handlers
-│   └── services/*.py            ← business logic + yFinance/CFTC I/O
+│   └── services/                ← business logic + yFinance/CFTC I/O
+│       ├── ideas/               ← idea-generation tools (heatmap, instrument viewer, news)
+│       ├── models/              ← registry-backed models (COT financial/commodity, ridge, …)
+│       └── registry_service.py  ← exposes registry/models_registry.py to /api/models/registry
 │
 ├── registry/
 │   └── models_registry.py       ← single-source-of-truth model list

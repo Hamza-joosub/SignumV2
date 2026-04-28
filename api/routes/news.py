@@ -1,10 +1,10 @@
 # /api/news, /api/news/{ticker}, /api/releases
 from fastapi import APIRouter, HTTPException
-from api.services.news_service import get_news
+from api.services.ideas.news_service import get_news
 import fastapi
 from fastapi import APIRouter, HTTPException
 from urllib.parse import unquote
-from api.services.news_service import get_news, get_ticker_news
+from api.services.ideas.news_service import get_news, get_ticker_news
 
 router = APIRouter()
 

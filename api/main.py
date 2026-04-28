@@ -9,9 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from pytz import timezone
 from api.routes import market_data
-from api.services.market_service import download_and_save_csv
-from api.services.cot_service import refresh_cot_data
-from api.services.cot_commodity_service import refresh_commodity_cot_data
+from api.services.ideas.market_service import download_and_save_csv
+from api.services.models.cot_service import refresh_cot_data
+from api.services.models.cot_commodity_service import refresh_commodity_cot_data
 
 CSV_PATH = "heatmap_data.csv"
 COT_CSV = "cot_clean.csv"

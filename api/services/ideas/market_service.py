@@ -1,4 +1,4 @@
-# api/services/market_service.py
+# api/services/ideas/market_service.py
 
 import yfinance as yf
 import pandas as pd

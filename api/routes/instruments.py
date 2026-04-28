@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 import fastapi
 import yfinance as yf
-from api.services.instrument_service import get_instrument_info, get_chart_data
+from api.services.ideas.instrument_service import get_instrument_info, get_chart_data
 # api/routes/instruments.py
 
 

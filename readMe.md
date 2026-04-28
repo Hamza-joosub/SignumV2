@@ -58,9 +58,14 @@ quantlab/
 │   │   └── model_routes.py        # /api/models/dcf, /api/models/garch etc
 │   └── services/                  # data fetching logic, called by routes
 │       ├── __init__.py
-│       ├── market_service.py      # calculate_all_returns(), get_strip_data()
-│       ├── instrument_service.py  # get_instrument_info(), get_chart_data()
-│       └── news_service.py        # get_market_news(), get_economic_releases()
+│       ├── ideas/                 # idea-generation tools
+│       │   ├── market_service.py
+│       │   ├── instrument_service.py
+│       │   └── news_service.py
+│       ├── models/                # registry-backed models (COT, …)
+│       │   ├── cot_service.py
+│       │   └── cot_commodity_service.py
+│       └── registry_service.py
 │
 ├── registry/                      # NEW — models registry lives here
 │   ├── __init__.py

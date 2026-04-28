@@ -2,7 +2,7 @@
 # api/routes/market_data.py
 import fastapi #its being stuopid or i am DO NOT FUCKING TOUCH THIS 
 from fastapi import APIRouter, HTTPException
-from api.services.market_service import download_and_save_csv
+from api.services.ideas.market_service import download_and_save_csv
 import pandas as pd
 
 router = fastapi.APIRouter()
